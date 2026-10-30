@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>TV Corporativa - Player</title>
+  <link rel="stylesheet" href="/css/player.css">
+</head>
+<body>
+
+  <div id="playerRoot">
+    <!-- Dynamic Zones Container -->
+    <div id="zoneContainer"></div>
+
+    <!-- Offline Indicator -->
+    <div id="offlineBanner">
+      <span>⚠️ Modo Offline (Reproduzindo do Cache Local)</span>
+    </div>
+
+    <!-- Audio Policy Unmute Button -->
+    <button id="audioUnmuteBtn" title="Clique para liberar som nas chamadas de senha e vídeos">
+      🔊 Ativar Áudio da TV
+    </button>
+
+    <!-- Clinic / Hospital Queue Call Popup Alert -->
+    <div id="queuePopup">
+      <div class="popup-card">
+        <div class="popup-tag">ATENDIMENTO</div>
+        <div class="popup-number" id="popupTicket">A-100</div>
+        <div class="popup-dest" id="popupLocation">Consultório 01</div>
+        <div class="popup-patient" id="popupPatient"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/player.js"></script>
+</body>
+</html>
