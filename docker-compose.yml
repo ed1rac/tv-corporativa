@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  tv-corporativa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tv-corporativa:latest
+    container_name: tv_corporativa_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+      - DB_PATH=/app/data/tv_corporativa.db
+      - MEDIA_PATH=/app/media
+      - JWT_SECRET=tvcorporativa_secret_jwt_key_2026_super_secure
+      - DEFAULT_CITY=São Paulo
+      - DEFAULT_RSS_URL=https://g1.globo.com/rss/g1/
+      - DEFAULT_TIMEZONE=America/Sao_Paulo
+    volumes:
+      - tv_data:/app/data
+      - tv_media:/app/media
+
+volumes:
+  tv_data:
+    driver: local
+  tv_media:
+    driver: local
