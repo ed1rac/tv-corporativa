@@ -26,7 +26,7 @@
           <label class="form-label">Senha</label>
           <input type="password" id="loginPass" class="form-control" placeholder="tvcorporativa ou 123456" value="tvcorporativa" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 8px;">
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 8px; justify-content: center;">
           Entrar no Painel
         </button>
       </form>
@@ -77,10 +77,16 @@
           <span>Layouts Multi-Zonas</span>
         </a>
       </li>
+      <li class="nav-item" data-view="announcements">
+        <a href="#announcements">
+          <span>📢</span>
+          <span>Comunicados & Marca</span>
+        </a>
+      </li>
       <li class="nav-item" data-view="queue">
         <a href="#queue">
           <span>🔔</span>
-          <span>Chamada de Senhas</span>
+          <span>Senhas & Guichês</span>
         </a>
       </li>
       <li class="nav-item" data-view="settings">
@@ -104,9 +110,15 @@
   <main id="mainContent">
     <header class="topbar">
       <h2 class="page-title" id="pageTitle">Painel de Controle</h2>
-      <div>
+      <div style="display: flex; gap: 10px;">
         <a href="/player?code=TV-01" target="_blank" class="btn btn-sm btn-success">
-          ▶️ Abrir Player da TV (TV-01)
+          ▶️ TV-01 (Corporativa)
+        </a>
+        <a href="/player?code=TV-02" target="_blank" class="btn btn-sm btn-primary">
+          ▶️ TV-02 (Consultório)
+        </a>
+        <a href="/player?code=TV-03" target="_blank" class="btn btn-sm btn-secondary">
+          ▶️ TV-03 (Totem 9:16)
         </a>
       </div>
     </header>
@@ -115,6 +127,20 @@
       <!-- Injected dynamically by admin.js -->
     </div>
   </main>
+
+  <!-- Modern Universal Modal Dialog -->
+  <div id="globalModal" class="modal-overlay">
+    <div id="globalModalBox" class="modal-box">
+      <div class="modal-header">
+        <h3 id="globalModalTitle" class="card-title">Modal</h3>
+        <button id="globalModalClose" class="close-btn">&times;</button>
+      </div>
+      <div id="globalModalBody" class="modal-body-content"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="/js/admin.js"></script>
 </body>

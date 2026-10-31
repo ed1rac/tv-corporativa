@@ -12,6 +12,20 @@
 <body>
 
   <div id="playerRoot">
+    <!-- Top Brand / Company Header Bar (Logo + Company Name) -->
+    <header id="companyHeader" class="company-header" style="display: none;">
+      <div class="company-brand">
+        <img id="headerLogo" src="/media/luds_logo100.png" alt="Logo" class="company-logo" onerror="this.style.display='none'">
+        <div class="company-titles">
+          <h1 id="headerTitle" class="company-name">TV Corporativa</h1>
+          <p id="headerSubtitle" class="company-subtitle">Comunicação Interna Integrada</p>
+        </div>
+      </div>
+      <div class="company-meta">
+        <span id="headerDisplayBadge" class="screen-badge">TV-01</span>
+      </div>
+    </header>
+
     <!-- Dynamic Zones Container -->
     <div id="zoneContainer"></div>
 
@@ -20,15 +34,75 @@
       <span>⚠️ Modo Offline (Reproduzindo do Cache Local)</span>
     </div>
 
-    <!-- Audio Policy Unmute Button -->
-    <button id="audioUnmuteBtn" title="Clique para liberar som nas chamadas de senha e vídeos">
+    <!-- Floating Controls Bottom Right/Left -->
+    <button id="queueDrawerBtn" class="floating-action-btn left-btn" style="display: none;" title="Abrir Lançador de Senhas e Guichês">
+      🎫 Lançar Senha / Guichê
+    </button>
+
+    <button id="audioUnmuteBtn" class="floating-action-btn right-btn" title="Clique para liberar som nas chamadas de senha e vídeos">
       🔊 Ativar Áudio da TV
     </button>
+
+    <!-- Quick Queue & Guichê Launcher Drawer (For Consultório TV) -->
+    <div id="queueDrawer" class="queue-drawer">
+      <div class="drawer-header">
+        <h3>🔔 Lançador de Tickets & Guichês</h3>
+        <button id="closeDrawerBtn" class="drawer-close">&times;</button>
+      </div>
+      <div class="drawer-body">
+        <!-- Section 1: Generate Waiting Ticket -->
+        <div class="drawer-section">
+          <h4>1. Gerar Nova Senha (Fila de Espera)</h4>
+          <div class="drawer-form-row">
+            <select id="qGenService" class="drawer-input"></select>
+            <input type="text" id="qGenPatient" class="drawer-input" placeholder="Nome do Paciente (opcional)">
+            <button id="btnGenTicket" class="drawer-btn btn-blue">➕ Gerar Ticket</button>
+          </div>
+          <div id="genTicketFeedback" class="drawer-feedback"></div>
+        </div>
+
+        <!-- Section 2: Call Next from Queue to a Guichê/Consultório -->
+        <div class="drawer-section">
+          <h4>2. Chamar Senha para Guichê / Consultório</h4>
+          <div class="drawer-form-row">
+            <label style="font-size: 0.8rem; color: #93c5fd;">Onde será atendido (Guichê / Consultório):</label>
+            <div style="display: flex; gap: 6px;">
+              <select id="qCallDesk" class="drawer-input" style="flex: 1;"></select>
+              <button id="btnQuickAddDesk" class="drawer-btn btn-gray" title="Novo Guichê/Consultório">+ Local</button>
+            </div>
+            <div id="quickAddDeskBox" style="display: none; gap: 6px; margin-top: 6px;">
+              <input type="text" id="newDeskInlineInput" class="drawer-input" placeholder="Ex: Consultório 04 ou Guichê 04" style="flex: 1;">
+              <button id="btnSaveInlineDesk" class="drawer-btn btn-blue">Salvar</button>
+            </div>
+          </div>
+          <button id="btnCallNextQueue" class="drawer-btn btn-green" style="width: 100%; margin-top: 8px; padding: 12px;">
+            📢 Chamar Próxima da Fila (<span id="waitingCountBadge">0</span> aguardando)
+          </button>
+
+          <div id="waitingListMini" class="waiting-list-mini"></div>
+        </div>
+
+        <!-- Section 3: Direct Manual Call -->
+        <div class="drawer-section">
+          <h4>3. Chamada Manual Avulsa</h4>
+          <div class="drawer-form-row">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <input type="text" id="qManualNumber" class="drawer-input" placeholder="Senha (Ex: A-105)">
+              <input type="text" id="qManualService" class="drawer-input" placeholder="Qual Atendimento (Ex: Exames)">
+            </div>
+            <input type="text" id="qManualPatient" class="drawer-input" placeholder="Paciente (opcional)" style="margin-top: 6px;">
+            <button id="btnCallManual" class="drawer-btn btn-amber" style="width: 100%; margin-top: 8px;">
+              🔔 Chamar Senha Manual
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Clinic / Hospital Queue Call Popup Alert -->
     <div id="queuePopup">
       <div class="popup-card">
-        <div class="popup-tag">ATENDIMENTO</div>
+        <div class="popup-tag" id="popupServiceTag">ATENDIMENTO</div>
         <div class="popup-number" id="popupTicket">A-100</div>
         <div class="popup-dest" id="popupLocation">Consultório 01</div>
         <div class="popup-patient" id="popupPatient"></div>

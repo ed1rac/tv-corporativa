@@ -2,11 +2,40 @@ import request from 'supertest';
 import { app } from './setup.js';
 
 describe('Clinic Queue & Ticket Calling API', () => {
-  it('should list recent tickets', async () => {
+  it('should list recent tickets, waiting queue, desks and services', async () => {
     const res = await request(app).get('/api/queue/recent');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.calls)).toBe(true);
+    expect(Array.isArray(res.body.waiting)).toBe(true);
+    expect(Array.isArray(res.body.desks)).toBe(true);
+    expect(Array.isArray(res.body.services)).toBe(true);
     expect(res.body.calls.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.desks.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.services.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should generate a new waiting ticket and call it to a desk', async () => {
+    const genRes = await request(app)
+      .post('/api/queue/generate')
+      .send({
+        service_id: 'srv-cons',
+        patient_name: 'Fernanda Costa'
+      });
+
+    expect(genRes.status).toBe(201);
+    expect(genRes.body.ticket.status).toBe('waiting');
+    expect(genRes.body.ticket.ticket_number).toMatch(/^C-\d+/);
+
+    const callRes = await request(app)
+      .post('/api/queue/call')
+      .send({
+        ticket_id: genRes.body.ticket.id,
+        location: 'Consultório 02 - Pediatria'
+      });
+
+    expect(callRes.status).toBe(201);
+    expect(callRes.body.call.status).toBe('active');
+    expect(callRes.body.call.location).toBe('Consultório 02 - Pediatria');
   });
 
   it('should call a new ticket for a clinic consultation', async () => {

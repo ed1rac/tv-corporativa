@@ -9,12 +9,11 @@ interface FeedCache {
 let cachedFeed: FeedCache | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-const parser = new Parser({
-  timeout: 8000,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (compatible; TVCorporativaSignage/2.0; +http://localhost)'
-  }
-});
+const parser = new Parser();
+
+export function clearRssCache(): void {
+  cachedFeed = null;
+}
 
 export async function fetchRssFeed(feedUrl: string): Promise<Array<{ title: string; link: string; pubDate?: string }>> {
   const now = Date.now();
@@ -24,12 +23,33 @@ export async function fetchRssFeed(feedUrl: string): Promise<Array<{ title: stri
   }
 
   try {
-    const feed = await parser.parseURL(feedUrl);
+    const response = await fetch(feedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const rawText = await response.text();
+    // Strip BOM and any leading characters before first '<'
+    const firstTagIdx = rawText.indexOf('<');
+    const cleanXml = firstTagIdx >= 0 ? rawText.slice(firstTagIdx).trim() : rawText.trim();
+
+    const feed = await parser.parseString(cleanXml);
     const items = (feed.items || []).slice(0, 15).map((item) => ({
-      title: item.title || 'Sem título',
+      title: (item.title || 'Sem título').replace(/\s+/g, ' ').trim(),
       link: item.link || '',
       pubDate: item.pubDate || ''
     }));
+
+    if (items.length === 0) {
+      throw new Error('Feed retornou 0 itens');
+    }
 
     cachedFeed = {
       url: feedUrl,
@@ -41,12 +61,11 @@ export async function fetchRssFeed(feedUrl: string): Promise<Array<{ title: stri
   } catch (err: any) {
     console.warn(`[RSS Service] Failed to fetch feed from ${feedUrl}: ${err.message}. Using fallback news.`);
 
-    // Fallback news in case of internet failure or CORS/timeout
     return [
-      { title: 'TV Corporativa: Bem-vindo ao sistema integrado de comunicação interna', link: '#' },
-      { title: 'Fique atento aos comunicados oficiais da empresa no painel digital', link: '#' },
-      { title: 'Prevenção e segurança: mantenha os corredores e saídas de emergência sempre livres', link: '#' },
-      { title: 'Dúvidas e suporte técnico: acerte os detalhes com a equipe de TI no ramal 100', link: '#' }
+      { title: 'TV Corporativa: Bem-vindo ao sistema integrado de comunicação interna e atendimento', link: '#' },
+      { title: 'Fique atento aos comunicados oficiais e avisos da empresa no painel digital', link: '#' },
+      { title: 'Prevenção e saúde: mantenha seus exames e consultas em dia', link: '#' },
+      { title: 'Dúvidas e suporte técnico: acerte os detalhes com a equipe de atendimento', link: '#' }
     ];
   }
 }
