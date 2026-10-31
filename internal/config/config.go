@@ -16,7 +16,7 @@ type Config struct {
 func Load() *Config {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "5179"
 	}
 
 	dbPath := os.Getenv("DB_PATH")
