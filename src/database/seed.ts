@@ -407,7 +407,11 @@ export async function runSeed(): Promise<void> {
     { key: 'announcement_title', value: '📢 COMUNICADOS & AVISOS', description: 'Título do quadro de comunicados na TV-01 e painéis' },
     { key: 'announcement_text', value: 'Seja bem-vindo(a)! Fique atento aos comunicados internos e informes importantes da organização neste painel.', description: 'Texto do quadro de comunicados' },
     { key: 'announcement_image', value: '', description: 'Imagem fixa do quadro de comunicados (cole da área de transferência ou envie arquivo)' },
-    { key: 'announcement_mode', value: 'both', description: 'Modo de exibição do comunicado: both (Texto + Imagem), image (Apenas Imagem Fixa), text (Apenas Texto)' }
+    { key: 'announcement_mode', value: 'both', description: 'Modo de exibição do comunicado: both (Texto + Imagem), image (Apenas Imagem Fixa), text (Apenas Texto)' },
+    { key: 'announcement_font_family', value: "'Roboto', sans-serif", description: 'Fonte tipográfica do texto dos comunicados' },
+    { key: 'announcement_font_size', value: '20', description: 'Tamanho da fonte dos comunicados em px (14 a 34)' },
+    { key: 'rss_font_family', value: "'Titillium Web', sans-serif", description: 'Fonte tipográfica das notícias do rodapé RSS' },
+    { key: 'rss_font_size', value: '22', description: 'Tamanho da fonte das notícias do rodapé RSS em px (16 a 34)' }
   ];
 
   for (const s of settings) {

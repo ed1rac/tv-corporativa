@@ -549,7 +549,7 @@
     activeMediaElement = el;
   }
 
-  // Announcements Content Builder (Supports Fixed Image + Text)
+  // Announcements Content Builder (Supports Fixed Image + Text + Custom Font & Clamped Size)
   function buildAnnouncementsHtml(isFullZone) {
     const title = settings.announcement_title || '📢 COMUNICADOS & AVISOS';
     const text = settings.announcement_text || 'Bem-vindo! Fique atento aos comunicados internos no painel.';
@@ -558,6 +558,11 @@
       ? (rawImg.startsWith('/') || rawImg.startsWith('http') ? rawImg : `/media/${rawImg}`)
       : '';
     const mode = settings.announcement_mode || 'both'; // 'both', 'image', 'text'
+    const fontFamily = settings.announcement_font_family || "'Roboto', sans-serif";
+    const rawSize = parseInt(settings.announcement_font_size, 10) || (isFullZone ? 22 : 20);
+    // Clamp safely so text never overflows or breaks the card/window
+    const safeTextOnlySize = Math.max(14, Math.min(34, rawSize));
+    const safeCombinedSize = Math.max(13, Math.min(22, rawSize));
 
     let innerContent = '';
 
@@ -572,11 +577,11 @@
         <div class="announcement-img-wrapper" style="max-height: 68%;">
           <img src="${imgUrl}" alt="Comunicado" class="announcement-fixed-img">
         </div>
-        ${text ? `<div class="announcement-body" style="font-size: 0.95rem;">${escapeHtml(text)}</div>` : ''}
+        ${text ? `<div class="announcement-body" style="font-family: ${escapeHtml(fontFamily)}; font-size: ${safeCombinedSize}px;">${escapeHtml(text)}</div>` : ''}
       `;
     } else {
       innerContent = `
-        <div class="announcement-body" style="${isFullZone ? 'font-size: 1.25rem;' : ''}">${escapeHtml(text)}</div>
+        <div class="announcement-body" style="font-family: ${escapeHtml(fontFamily)}; font-size: ${safeTextOnlySize}px;">${escapeHtml(text)}</div>
       `;
     }
 
@@ -961,8 +966,12 @@
             .join(' ');
 
           const speedPxPerSec = Math.max(15, Math.min(120, parseInt(settings.rss_scroll_speed, 10) || 40));
+          const rssFontFamily = settings.rss_font_family || "'Titillium Web', sans-serif";
+          const rssFontSize = Math.max(16, Math.min(34, parseInt(settings.rss_font_size, 10) || 22));
 
           tickerTargets.forEach((el) => {
+            el.style.fontFamily = rssFontFamily;
+            el.style.fontSize = `${rssFontSize}px`;
             el.innerHTML = itemsHtml;
             // Measure total pixel width to calculate smooth duration (px / px_per_sec)
             requestAnimationFrame(() => {

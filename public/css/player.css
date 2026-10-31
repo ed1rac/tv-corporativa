@@ -395,11 +395,17 @@ body, html {
 }
 
 .announcement-body {
-  font-size: 1.05rem;
-  line-height: 1.42;
+  font-size: var(--ann-font-size, 20px);
+  font-family: var(--ann-font-family, 'Roboto', sans-serif);
+  line-height: 1.38;
   color: #e5e7eb;
   white-space: pre-line;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
 }
 
 /* Queue Call (Clinic Ticket) in Sidebar */
@@ -545,7 +551,9 @@ body, html {
 .ticker-content {
   display: inline-block;
   white-space: nowrap;
-  font-size: 1.25rem;
+  font-size: var(--rss-font-size, 22px);
+  font-family: var(--rss-font-family, 'Titillium Web', sans-serif);
+  line-height: 1.15;
   font-weight: 500;
   color: #f3f4f6;
   animation: marquee-anim var(--ticker-duration, 140s) linear infinite;

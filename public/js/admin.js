@@ -1563,8 +1563,21 @@ function openLayoutEditorModal(layout) {
 }
 
 // ============================================================================
-// 6. COMUNICADOS & MARCA (COMPANY HEADER + ANNOUNCEMENTS + CTRL+V PASTE)
+// 6. COMUNICADOS & MARCA (COMPANY HEADER + ANNOUNCEMENTS + CTRL+V PASTE + FONTS)
 // ============================================================================
+const WEB_FONT_OPTIONS = [
+  { value: "'Roboto', sans-serif", label: 'Roboto (Moderna & Limpa — Recomendada)' },
+  { value: "'Titillium Web', sans-serif", label: 'Titillium Web (Tecnológica & Elegante — Recomendada)' },
+  { value: "'Montserrat', sans-serif", label: 'Montserrat (Geométrica & Destaque)' },
+  { value: "'Poppins', sans-serif", label: 'Poppins (Corporativa & Suave)' },
+  { value: "'Open Sans', sans-serif", label: 'Open Sans (Alta Legibilidade)' },
+  { value: "'Segoe UI', system-ui, sans-serif", label: 'Segoe UI (Padrão Windows)' },
+  { value: 'Arial, Helvetica, sans-serif', label: 'Arial / Helvetica (Clássica Web)' },
+  { value: 'Verdana, Geneva, sans-serif', label: 'Verdana (Larga para Leitura à Distância)' },
+  { value: "'Trebuchet MS', sans-serif", label: 'Trebuchet MS (Humanista)' },
+  { value: 'Georgia, serif', label: 'Georgia (Serifada Editorial)' }
+];
+
 async function renderAnnouncements() {
   const [settingsRes, mediaRes] = await Promise.all([
     apiFetch('/settings'),
@@ -1575,6 +1588,10 @@ async function renderAnnouncements() {
 
   const currentLogoUrl = s.company_logo || '/media/luds_logo100.png';
   const currentAnnImgUrl = s.announcement_image || '';
+  const currentAnnFont = s.announcement_font_family || "'Roboto', sans-serif";
+  const currentAnnSize = Math.max(14, Math.min(34, parseInt(s.announcement_font_size || '20', 10) || 20));
+  const currentRssFont = s.rss_font_family || "'Titillium Web', sans-serif";
+  const currentRssSize = Math.max(16, Math.min(34, parseInt(s.rss_font_size || '22', 10) || 22));
 
   viewContainer.innerHTML = `
     <div class="grid-2">
@@ -1641,7 +1658,7 @@ async function renderAnnouncements() {
           <div>
             <span class="card-title">📢 Editor do Espaço de Comunicados (TV-01 e Totem)</span>
             <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem;">
-              Personalize o quadro de Comunicados do player TV-01 com texto, imagem fixa ou ambos (basta copiar da Área de Trabalho e colar com Ctrl+V!).
+              Personalize o quadro de Comunicados com texto, fonte, tamanho seguro e imagem fixa (cole da Área de Trabalho com Ctrl+V!).
             </p>
           </div>
         </div>
@@ -1665,6 +1682,25 @@ async function renderAnnouncements() {
           <div class="form-group">
             <label>Mensagem / Texto do Comunicado</label>
             <textarea id="annText" class="form-control" rows="3" placeholder="Digite o aviso importante para os colaboradores e visitantes...">${escHtml(s.announcement_text || '')}</textarea>
+          </div>
+
+          <!-- FONTE E TAMANHO DO TEXTO DO COMUNICADO -->
+          <div class="grid-2" style="background:rgba(15,23,42,0.55);padding:12px;border-radius:10px;border:1px solid var(--border);margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label>🔤 Fonte do Texto (Comunicado)</label>
+              <select id="annFontFamily" class="form-control">
+                ${WEB_FONT_OPTIONS.map((f) => `<option value="${escHtml(f.value)}" ${currentAnnFont === f.value ? 'selected' : ''}>${escHtml(f.label)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>📏 Tamanho da Fonte (<span id="annFontSizeVal">${currentAnnSize}px</span> — máx. seguro 34px)</label>
+              <input type="range" id="annFontSize" class="form-control" min="14" max="34" step="1" value="${currentAnnSize}" style="padding:6px 0;cursor:pointer;" />
+            </div>
+          </div>
+
+          <div style="background:#0b1329;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;max-height:110px;overflow-y:auto;">
+            <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Prévia do Texto do Comunicado:</div>
+            <div id="annLiveTextPreview" style="font-family:${escHtml(currentAnnFont)};font-size:${currentAnnSize}px;line-height:1.35;color:#e5e7eb;word-break:break-word;">${escHtml(s.announcement_text || 'Prévia do texto do comunicado com a fonte escolhida.')}</div>
           </div>
 
           <div class="form-group">
@@ -1694,6 +1730,37 @@ async function renderAnnouncements() {
           <button type="submit" class="btn btn-primary" style="width:100%;">💾 Publicar Comunicado no Player TV-01</button>
         </form>
       </div>
+    </div>
+
+    <!-- CARD 3: ESTILO DE FONTE E TAMANHO DAS NOTÍCIAS RSS (RODAPÉ) -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <span class="card-title">📰 Tipografia & Tamanho das Notícias (Rodapé RSS)</span>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.2rem;">
+            Altere a fonte (incluindo Roboto e Titillium Web) e o tamanho da letra das notícias que deslizam na barra inferior das TVs sem estourar a faixa.
+          </p>
+        </div>
+      </div>
+      <form id="rssTypographyQuickForm">
+        <div class="grid-3" style="align-items:flex-end;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>🔤 Fonte das Notícias RSS</label>
+            <select id="quickRssFontFamily" class="form-control">
+              ${WEB_FONT_OPTIONS.map((f) => `<option value="${escHtml(f.value)}" ${currentRssFont === f.value ? 'selected' : ''}>${escHtml(f.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>📏 Tamanho da Fonte (<span id="quickRssFontSizeVal">${currentRssSize}px</span> — máx. seguro 34px)</label>
+            <input type="range" id="quickRssFontSize" class="form-control" min="16" max="34" step="1" value="${currentRssSize}" style="padding:6px 0;cursor:pointer;" />
+          </div>
+          <button type="submit" class="btn btn-primary">💾 Aplicar Fonte nas Notícias</button>
+        </div>
+        <div style="background:#0b1329;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:12px;overflow:hidden;white-space:nowrap;">
+          <span style="background:#ef4444;color:#fff;font-weight:800;font-size:0.75rem;padding:3px 10px;border-radius:4px;margin-right:10px;">NOTÍCIAS</span>
+          <span id="quickRssLivePreview" style="font-family:${escHtml(currentRssFont)};font-size:${currentRssSize}px;color:#f3f4f6;">Últimas notícias em tempo real na TV Corporativa com leitura confortável ●</span>
+        </div>
+      </form>
     </div>
   `;
 
@@ -1808,6 +1875,26 @@ async function renderAnnouncements() {
     if (e.target.files[0]) handleAnnImageUpload(e.target.files[0]);
   });
 
+  // Live Typography Preview for Announcements
+  const annFontFamilyEl = document.getElementById('annFontFamily');
+  const annFontSizeEl = document.getElementById('annFontSize');
+  const annFontSizeValEl = document.getElementById('annFontSizeVal');
+  const annTextEl = document.getElementById('annText');
+  const annLiveTextPreviewEl = document.getElementById('annLiveTextPreview');
+
+  const updateAnnTypographyPreview = () => {
+    const f = annFontFamilyEl.value;
+    const sz = Math.max(14, Math.min(34, parseInt(annFontSizeEl.value, 10) || 20));
+    annFontSizeValEl.textContent = `${sz}px`;
+    annLiveTextPreviewEl.style.fontFamily = f;
+    annLiveTextPreviewEl.style.fontSize = `${sz}px`;
+    annLiveTextPreviewEl.textContent = annTextEl.value.trim() || 'Prévia do texto do comunicado com a fonte escolhida.';
+  };
+
+  annFontFamilyEl.addEventListener('change', updateAnnTypographyPreview);
+  annFontSizeEl.addEventListener('input', updateAnnTypographyPreview);
+  annTextEl.addEventListener('input', updateAnnTypographyPreview);
+
   document.getElementById('announcementForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -1817,10 +1904,45 @@ async function renderAnnouncements() {
           announcement_title: document.getElementById('annTitle').value.trim(),
           announcement_mode: document.getElementById('annMode').value,
           announcement_text: document.getElementById('annText').value.trim(),
-          announcement_image: annImageSelect.value
+          announcement_image: annImageSelect.value,
+          announcement_font_family: annFontFamilyEl.value,
+          announcement_font_size: String(Math.max(14, Math.min(34, parseInt(annFontSizeEl.value, 10) || 20)))
         })
       });
-      showToast('Comunicado publicado instantaneamente no player TV-01!');
+      showToast('Comunicado (com fonte e tamanho) publicado instantaneamente na TV!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  // Live Typography Preview & Save for RSS News Ticker
+  const quickRssFontFamilyEl = document.getElementById('quickRssFontFamily');
+  const quickRssFontSizeEl = document.getElementById('quickRssFontSize');
+  const quickRssFontSizeValEl = document.getElementById('quickRssFontSizeVal');
+  const quickRssLivePreviewEl = document.getElementById('quickRssLivePreview');
+
+  const updateQuickRssPreview = () => {
+    const f = quickRssFontFamilyEl.value;
+    const sz = Math.max(16, Math.min(34, parseInt(quickRssFontSizeEl.value, 10) || 22));
+    quickRssFontSizeValEl.textContent = `${sz}px`;
+    quickRssLivePreviewEl.style.fontFamily = f;
+    quickRssLivePreviewEl.style.fontSize = `${sz}px`;
+  };
+
+  quickRssFontFamilyEl.addEventListener('change', updateQuickRssPreview);
+  quickRssFontSizeEl.addEventListener('input', updateQuickRssPreview);
+
+  document.getElementById('rssTypographyQuickForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          rss_font_family: quickRssFontFamilyEl.value,
+          rss_font_size: String(Math.max(16, Math.min(34, parseInt(quickRssFontSizeEl.value, 10) || 22)))
+        })
+      });
+      showToast('Fonte e tamanho das notícias RSS atualizados nas TVs!');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -2258,17 +2380,19 @@ window.deleteServiceItem = async (id) => {
 };
 
 // ============================================================================
-// 8. GLOBAL SETTINGS VIEW (CLIMA, RSS FEED & VELOCIDADE DO TICKER)
+// 8. GLOBAL SETTINGS VIEW (CLIMA, RSS FEED, FONTE/TAMANHO & VELOCIDADE DO TICKER)
 // ============================================================================
 async function renderSettings() {
   const data = await apiFetch('/settings');
   const s = data.settings;
   const currentSpeed = parseInt(s.rss_scroll_speed || '40', 10) || 40;
+  const currentRssFont = s.rss_font_family || "'Titillium Web', sans-serif";
+  const currentRssSize = Math.max(16, Math.min(34, parseInt(s.rss_font_size || '22', 10) || 22));
 
   viewContainer.innerHTML = `
-    <div class="card" style="max-width:760px;">
+    <div class="card" style="max-width:780px;">
       <div class="card-header">
-        <span class="card-title">Configurações de Clima, Notícias RSS & Áudio</span>
+        <span class="card-title">Configurações de Clima, Notícias RSS, Tipografia & Áudio</span>
       </div>
       <form id="settingsForm">
         <div class="grid-3">
@@ -2289,6 +2413,19 @@ async function renderSettings() {
         <div class="form-group">
           <label>URL do Feed de Notícias RSS (Exibido na TV-01, Consultório e Totem)</label>
           <input type="url" id="setRss" class="form-control" value="${escHtml(s.rss_feed_url || 'https://g1.globo.com/rss/g1/')}" />
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label>🔤 Fonte das Notícias (Rodapé RSS)</label>
+            <select id="setRssFontFamily" class="form-control">
+              ${WEB_FONT_OPTIONS.map((f) => `<option value="${escHtml(f.value)}" ${currentRssFont === f.value ? 'selected' : ''}>${escHtml(f.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>📏 Tamanho da Fonte das Notícias (<span id="setRssFontSizeVal">${currentRssSize}px</span> — máx. 34px)</label>
+            <input type="range" id="setRssFontSize" class="form-control" min="16" max="34" step="1" value="${currentRssSize}" style="padding:6px 0;cursor:pointer;" />
+          </div>
         </div>
 
         <div class="grid-2">
@@ -2315,6 +2452,12 @@ async function renderSettings() {
     </div>
   `;
 
+  const setRssFontSizeEl = document.getElementById('setRssFontSize');
+  const setRssFontSizeValEl = document.getElementById('setRssFontSizeVal');
+  setRssFontSizeEl.addEventListener('input', () => {
+    setRssFontSizeValEl.textContent = `${setRssFontSizeEl.value}px`;
+  });
+
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = {
@@ -2322,6 +2465,8 @@ async function renderSettings() {
       weather_latitude: document.getElementById('setLat').value.trim(),
       weather_longitude: document.getElementById('setLon').value.trim(),
       rss_feed_url: document.getElementById('setRss').value.trim(),
+      rss_font_family: document.getElementById('setRssFontFamily').value,
+      rss_font_size: String(Math.max(16, Math.min(34, parseInt(setRssFontSizeEl.value, 10) || 22))),
       rss_scroll_speed: document.getElementById('setRssSpeed').value,
       enable_tts: document.getElementById('setTts').value
     };
