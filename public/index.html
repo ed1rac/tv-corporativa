@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TV Corporativa - Painel de Controle</title>
-  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/admin.css?v=1.1.1">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
       <h1 class="login-title">TV Corporativa</h1>
       <p class="login-sub">Sistema Profissional de Sinalização Digital</p>
 
-      <div id="loginError" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem;"></div>
+      <div id="loginError" class="hidden" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem;"></div>
 
       <form id="loginForm">
         <div class="form-group" style="text-align: left;">
@@ -32,7 +32,7 @@
       </form>
 
       <div style="margin-top: 24px; font-size: 0.8rem; color: var(--text-muted); text-align: left; background: #0b1329; padding: 12px; border-radius: 8px;">
-        <strong>Usuários de Teste:</strong><br>
+        <strong>Usuários Padrão:</strong><br>
         • <code>admin</code> / senha: <code>tvcorporativa</code><br>
         • <code>edkallenn</code> / senha: <code>123456</code>
       </div>
@@ -110,7 +110,10 @@
   <main id="mainContent">
     <header class="topbar">
       <h2 class="page-title" id="pageTitle">Painel de Controle</h2>
-      <div style="display: flex; gap: 10px;">
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button id="reloadScreensBtn" class="btn btn-sm btn-outline" title="Forçar atualização imediata em todas as TVs conectadas">
+          🔄 Recarregar TVs
+        </button>
         <a href="/player?code=TV-01" target="_blank" class="btn btn-sm btn-success">
           ▶️ TV-01 (Corporativa)
         </a>
@@ -129,19 +132,20 @@
   </main>
 
   <!-- Modern Universal Modal Dialog -->
-  <div id="globalModal" class="modal-overlay">
+  <div id="globalModal" class="modal-overlay hidden">
     <div id="globalModalBox" class="modal-box">
       <div class="modal-header">
         <h3 id="globalModalTitle" class="card-title">Modal</h3>
         <button id="globalModalClose" class="close-btn">&times;</button>
       </div>
       <div id="globalModalBody" class="modal-body-content"></div>
+      <div id="globalModalFooter" class="modal-footer-content"></div>
     </div>
   </div>
 
   <!-- Toast Notifications Container -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin.js?v=1.1.1"></script>
 </body>
 </html>

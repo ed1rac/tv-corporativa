@@ -148,22 +148,22 @@ const DEFAULT_LAYOUT_PRESETS = {
 };
 
 // DOM Elements
-const loginScreen = document.getElementById('loginScreen');
-const appShell = document.getElementById('appShell');
+const loginContainer = document.getElementById('loginContainer');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
-const viewContainer = document.getElementById('viewContainer');
+const viewContainer = document.getElementById('viewContent');
 const pageTitle = document.getElementById('pageTitle');
-const userBadge = document.getElementById('userBadge');
-const logoutBtn = document.getElementById('logoutBtn');
+const loggedUserName = document.getElementById('loggedUserName');
+const loggedUserRole = document.getElementById('loggedUserRole');
+const logoutBtn = document.getElementById('btnLogout');
 const reloadScreensBtn = document.getElementById('reloadScreensBtn');
 
 // Modal Elements
 const globalModal = document.getElementById('globalModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalBody = document.getElementById('modalBody');
-const modalFooter = document.getElementById('modalFooter');
-const modalCloseBtn = document.getElementById('modalCloseBtn');
+const modalTitle = document.getElementById('globalModalTitle');
+const modalBody = document.getElementById('globalModalBody');
+const modalFooter = document.getElementById('globalModalFooter');
+const modalCloseBtn = document.getElementById('globalModalClose');
 
 function escHtml(str) {
   return String(str ?? '')
@@ -290,13 +290,12 @@ async function uploadImageFileOrBlob(fileOrBlob, customName = null, duration = 1
 // ============================================================================
 function checkAuth() {
   if (token && currentUser) {
-    loginScreen.classList.add('hidden');
-    appShell.classList.remove('hidden');
-    userBadge.textContent = `${currentUser.username} (${currentUser.role})`;
+    if (loginContainer) loginContainer.classList.add('hidden');
+    if (loggedUserName) loggedUserName.textContent = currentUser.name || currentUser.username;
+    if (loggedUserRole) loggedUserRole.textContent = String(currentUser.role || 'admin').toUpperCase();
     loadView(currentView);
   } else {
-    loginScreen.classList.remove('hidden');
-    appShell.classList.add('hidden');
+    if (loginContainer) loginContainer.classList.remove('hidden');
   }
 }
 
@@ -308,39 +307,46 @@ function logout() {
   checkAuth();
 }
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginError.classList.add('hidden');
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (loginError) loginError.classList.add('hidden');
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
 
-  try {
-    const data = await apiFetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password })
-    });
-    token = data.token;
-    currentUser = data.user;
-    localStorage.setItem('tv_corp_token', token);
-    localStorage.setItem('tv_corp_user', JSON.stringify(currentUser));
-    showToast(`Bem-vindo, ${currentUser.username}!`);
-    checkAuth();
-  } catch (err) {
-    loginError.textContent = err.message;
-    loginError.classList.remove('hidden');
-  }
-});
+    try {
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      token = data.token;
+      currentUser = data.user;
+      localStorage.setItem('tv_corp_token', token);
+      localStorage.setItem('tv_corp_user', JSON.stringify(currentUser));
+      showToast(`Bem-vindo, ${currentUser.name || currentUser.username}!`);
+      checkAuth();
+    } catch (err) {
+      if (loginError) {
+        loginError.textContent = err.message;
+        loginError.classList.remove('hidden');
+        loginError.style.display = 'block';
+      }
+    }
+  });
+}
 
-logoutBtn.addEventListener('click', logout);
+if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-reloadScreensBtn.addEventListener('click', async () => {
-  try {
-    await apiFetch('/settings/reload-screens', { method: 'POST' });
-    showToast('Sinal de atualização instantânea enviado para todas as TVs!');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-});
+if (reloadScreensBtn) {
+  reloadScreensBtn.addEventListener('click', async () => {
+    try {
+      await apiFetch('/settings/reload-screens', { method: 'POST' });
+      showToast('Sinal de atualização instantânea enviado para todas as TVs!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+}
 
 document.querySelectorAll('.nav-item').forEach((item) => {
   item.addEventListener('click', (e) => {
@@ -461,7 +467,7 @@ async function renderDashboard() {
                   </span>
                 </td>
                 <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-                  <a href="/player.html?screen=${encodeURIComponent(d.code)}" target="_blank" class="btn btn-sm btn-primary">▶ Abrir Player</a>
+                  <a href="/player?code=${encodeURIComponent(d.code)}" target="_blank" class="btn btn-sm btn-primary">▶ Abrir Player</a>
                   <button class="btn btn-sm btn-outline" onclick="editDisplayById('${d.id}')">✏️ Editar</button>
                   <button class="btn btn-sm btn-outline" onclick="reloadSingleScreen('${escHtml(d.code)}')">🔄</button>
                 </td>
@@ -569,7 +575,7 @@ async function renderDisplays() {
                 <td><span class="badge ${isOnlineStatus(d.status) ? 'badge-success' : 'badge-warning'}">${escHtml(String(d.status || '').toUpperCase())}</span></td>
                 <td>
                   <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-                    <a href="/player.html?screen=${encodeURIComponent(d.code)}" target="_blank" class="btn btn-sm btn-primary">▶ Abrir</a>
+                    <a href="/player?code=${encodeURIComponent(d.code)}" target="_blank" class="btn btn-sm btn-primary">▶ Abrir</a>
                     <button class="btn btn-sm btn-outline" onclick="openEditDisplayModalByIndex('${d.id}')">✏️ Editar</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteDisplay('${d.id}', '${escHtml(d.code)}')">🗑️</button>
                   </div>

@@ -84,7 +84,7 @@
 
   // Parse Query Params
   const urlParams = new URLSearchParams(window.location.search);
-  displayCode = (urlParams.get('code') || 'TV-01').toUpperCase();
+  displayCode = (urlParams.get('code') || urlParams.get('screen') || 'TV-01').toUpperCase();
 
   // Register Service Worker
   if ('serviceWorker' in navigator) {
