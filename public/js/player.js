@@ -32,6 +32,7 @@
 
   // Play pleasant clinic chime (Do-Mi-Sol-Do chord)
   function playChime() {
+    if (!audioUnlocked) return;
     try {
       initAudioContext();
       if (!audioCtx) return;
@@ -63,7 +64,7 @@
 
   // Speak ticket call
   function speakTicket(ticket) {
-    if (settings.enable_tts === 'false') return;
+    if (!audioUnlocked || settings.enable_tts === 'false') return;
     if ('speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -104,16 +105,49 @@
   const closeDrawerBtn = document.getElementById('closeDrawerBtn');
   const offlineBanner = document.getElementById('offlineBanner');
 
-  // Handle Unmute Button Click
+  // Handle Audio Toggle Button Click (Ativar / Desativar Áudio da TV)
+  function syncStreamAudioState() {
+    document.querySelectorAll('.ann-stream-media').forEach((mediaEl) => {
+      mediaEl.muted = !audioUnlocked;
+      if (audioUnlocked) {
+        mediaEl.play().catch(() => {});
+      }
+    });
+    const eq = document.querySelector('.radio-equalizer');
+    if (eq) {
+      eq.classList.toggle('paused', !audioUnlocked);
+    }
+    const ytIframe = document.querySelector('.ann-stream-iframe[data-yt-base]');
+    if (ytIframe) {
+      const base = ytIframe.getAttribute('data-yt-base');
+      ytIframe.src = `${base}&mute=${audioUnlocked ? 0 : 1}`;
+    }
+  }
+
   if (audioUnmuteBtn) {
     audioUnmuteBtn.addEventListener('click', () => {
-      audioUnlocked = true;
-      initAudioContext();
-      playChime();
-      audioUnmuteBtn.style.display = 'none';
-      if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
-        activeMediaElement.muted = false;
+      audioUnlocked = !audioUnlocked;
+      if (audioUnlocked) {
+        audioUnmuteBtn.classList.remove('muted');
+        audioUnmuteBtn.classList.add('unmuted');
+        audioUnmuteBtn.innerHTML = '🔊 Áudio Ativo (Silenciar)';
+        initAudioContext();
+        playChime();
+        if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
+          activeMediaElement.muted = false;
+        }
+      } else {
+        audioUnmuteBtn.classList.remove('unmuted');
+        audioUnmuteBtn.classList.add('muted');
+        audioUnmuteBtn.innerHTML = '🔇 Ativar Áudio';
+        if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
+          activeMediaElement.muted = true;
+        }
+        if ('speechSynthesis' in window) {
+          try { window.speechSynthesis.cancel(); } catch (e) {}
+        }
       }
+      syncStreamAudioState();
     });
   }
 
@@ -273,10 +307,16 @@
 
     const showGlobalHeader = settings.show_company_header !== 'false';
     const showScreenHeader = displayData && displayData.display ? displayData.display.show_header !== false : true;
+    const floatingMetaEl = document.getElementById('floatingScreenMeta');
+    const floatingBadgeEl = document.getElementById('floatingDisplayBadge');
+    const screenLabel = displayData && displayData.display
+      ? `${displayData.display.name} (${displayData.display.code})`
+      : displayCode;
 
     if (headerEl) {
       if (showGlobalHeader && showScreenHeader) {
         headerEl.style.display = 'flex';
+        if (floatingMetaEl) floatingMetaEl.style.display = 'none';
         if (titleEl) titleEl.innerText = settings.site_title || 'TV Corporativa';
         if (subEl) {
           subEl.innerText = settings.company_subtitle || '';
@@ -292,11 +332,15 @@
             logoEl.style.display = 'none';
           }
         }
-        if (badgeEl && displayData && displayData.display) {
-          badgeEl.innerText = `${displayData.display.name} (${displayData.display.code})`;
+        if (badgeEl) {
+          badgeEl.innerText = screenLabel;
         }
       } else {
         headerEl.style.display = 'none';
+        if (floatingMetaEl) {
+          floatingMetaEl.style.display = 'flex';
+          if (floatingBadgeEl) floatingBadgeEl.innerText = screenLabel;
+        }
       }
     }
   }
@@ -549,7 +593,88 @@
     activeMediaElement = el;
   }
 
-  // Announcements Content Builder (Supports Fixed Image + Text + Custom Font & Clamped Size)
+  // Helper to build Streaming TV / Radio player inside Announcements zone
+  function buildStreamEmbedHtml(streamUrl, streamType, title) {
+    const cleanUrl = String(streamUrl || '').trim();
+    if (!cleanUrl) return '';
+
+    const lower = cleanUrl.toLowerCase();
+    const isYoutube = lower.includes('youtube.com/') || lower.includes('youtu.be/');
+    const isRadio =
+      streamType === 'radio' ||
+      (streamType === 'auto' &&
+        (lower.endsWith('.mp3') ||
+          lower.endsWith('.aac') ||
+          lower.endsWith('.ogg') ||
+          lower.includes('icecast') ||
+          lower.includes('shoutcast') ||
+          lower.includes('radio') ||
+          lower.includes('stream')));
+    const isDirectVideo =
+      lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.m3u8');
+
+    if (isYoutube) {
+      let videoId = '';
+      try {
+        if (lower.includes('youtu.be/')) {
+          videoId = cleanUrl.split('youtu.be/')[1].split(/[?&]/)[0];
+        } else if (lower.includes('/live/')) {
+          videoId = cleanUrl.split('/live/')[1].split(/[?&]/)[0];
+        } else if (lower.includes('/embed/')) {
+          videoId = cleanUrl.split('/embed/')[1].split(/[?&]/)[0];
+        } else {
+          const u = new URL(cleanUrl);
+          videoId = u.searchParams.get('v') || '';
+        }
+      } catch (e) {}
+
+      if (videoId) {
+        const baseEmbed = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0`;
+        const embedSrc = `${baseEmbed}&mute=${audioUnlocked ? 0 : 1}`;
+        return `
+          <div class="announcement-stream-wrapper">
+            <iframe class="ann-stream-iframe" data-yt-base="${escapeHtml(baseEmbed)}" src="${escapeHtml(embedSrc)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+          </div>
+        `;
+      }
+    }
+
+    if (isRadio) {
+      return `
+        <div class="announcement-stream-wrapper">
+          <div class="radio-stream-card">
+            <span class="radio-live-pill">● RÁDIO / ÁUDIO AO VIVO</span>
+            <div class="radio-equalizer ${audioUnlocked ? '' : 'paused'}">
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+            </div>
+            <div style="font-size:0.85rem;font-weight:700;color:#e2e8f0;">${escapeHtml(title || 'Sintonizado na Rádio')}</div>
+            <audio class="ann-stream-media" src="${escapeHtml(cleanUrl)}" autoplay ${audioUnlocked ? '' : 'muted'} controls style="width:100%;max-width:250px;height:32px;"></audio>
+          </div>
+        </div>
+      `;
+    }
+
+    if (isDirectVideo) {
+      return `
+        <div class="announcement-stream-wrapper">
+          <video class="ann-stream-video ann-stream-media" src="${escapeHtml(cleanUrl)}" autoplay loop playsinline ${audioUnlocked ? '' : 'muted'} controls></video>
+        </div>
+      `;
+    }
+
+    // Generic TV / Web Embed iframe
+    return `
+      <div class="announcement-stream-wrapper">
+        <iframe class="ann-stream-iframe" src="${escapeHtml(cleanUrl)}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+      </div>
+    `;
+  }
+
+  // Announcements Content Builder (Supports Fixed Image, Text, Custom Font/Size & Live TV/Radio Stream)
   function buildAnnouncementsHtml(isFullZone) {
     const title = settings.announcement_title || '📢 COMUNICADOS & AVISOS';
     const text = settings.announcement_text || 'Bem-vindo! Fique atento aos comunicados internos no painel.';
@@ -557,7 +682,9 @@
     const imgUrl = rawImg
       ? (rawImg.startsWith('/') || rawImg.startsWith('http') ? rawImg : `/media/${rawImg}`)
       : '';
-    const mode = settings.announcement_mode || 'both'; // 'both', 'image', 'text'
+    const streamUrl = (settings.announcement_stream_url || '').trim();
+    const streamType = settings.announcement_stream_type || 'auto';
+    const mode = settings.announcement_mode || 'both'; // 'both', 'image', 'text', 'stream', 'stream_text'
     const fontFamily = settings.announcement_font_family || "'Roboto', sans-serif";
     const rawSize = parseInt(settings.announcement_font_size, 10) || (isFullZone ? 22 : 20);
     // Clamp safely so text never overflows or breaks the card/window
@@ -566,7 +693,19 @@
 
     let innerContent = '';
 
-    if (mode === 'image' && imgUrl) {
+    if ((mode === 'stream' || mode === 'stream_text') && streamUrl) {
+      const streamHtml = buildStreamEmbedHtml(streamUrl, streamType, title);
+      if (mode === 'stream_text' && text) {
+        innerContent = `
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;max-height:68%;">
+            ${streamHtml}
+          </div>
+          <div class="announcement-body" style="font-family: ${escapeHtml(fontFamily)}; font-size: ${safeCombinedSize}px;">${escapeHtml(text)}</div>
+        `;
+      } else {
+        innerContent = streamHtml;
+      }
+    } else if (mode === 'image' && imgUrl) {
       innerContent = `
         <div class="announcement-img-wrapper">
           <img src="${imgUrl}" alt="Comunicado" class="announcement-fixed-img">

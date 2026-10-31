@@ -410,6 +410,8 @@ export async function runSeed(): Promise<void> {
     { key: 'announcement_mode', value: 'both', description: 'Modo de exibição do comunicado: both (Texto + Imagem), image (Apenas Imagem Fixa), text (Apenas Texto)' },
     { key: 'announcement_font_family', value: "'Roboto', sans-serif", description: 'Fonte tipográfica do texto dos comunicados' },
     { key: 'announcement_font_size', value: '20', description: 'Tamanho da fonte dos comunicados em px (14 a 34)' },
+    { key: 'announcement_stream_url', value: '', description: 'URL de streaming de TV ou Rádio para o espaço de comunicados' },
+    { key: 'announcement_stream_type', value: 'auto', description: 'Tipo de streaming no comunicado: auto, tv ou radio' },
     { key: 'rss_font_family', value: "'Titillium Web', sans-serif", description: 'Fonte tipográfica das notícias do rodapé RSS' },
     { key: 'rss_font_size', value: '22', description: 'Tamanho da fonte das notícias do rodapé RSS em px (16 a 34)' }
   ];

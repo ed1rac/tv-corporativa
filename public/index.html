@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css?v=1.2.0">
+  <link rel="stylesheet" href="/css/admin.css?v=1.3.0">
 </head>
 <body>
 
@@ -16,7 +16,8 @@
     <div class="login-card">
       <div style="font-size: 3rem; margin-bottom: 10px;">📺</div>
       <h1 class="login-title">TV Corporativa</h1>
-      <p class="login-sub">Sistema Profissional de Sinalização Digital</p>
+      <p class="login-sub" style="margin-bottom: 6px;">Sistema Profissional de Sinalização Digital</p>
+      <p style="font-size: 0.76rem; color: #64748b; margin-bottom: 20px;">Programado por Edkallenn</p>
 
       <div id="loginError" class="hidden" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem;"></div>
 
@@ -44,9 +45,12 @@
 
   <!-- Sidebar Navigation -->
   <aside id="sidebar">
-    <div class="brand">
-      <span class="brand-icon">📺</span>
-      <span>TV Corporativa</span>
+    <div class="brand" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="brand-icon">📺</span>
+        <span>TV Corporativa</span>
+      </div>
+      <span style="font-size: 0.7rem; font-weight: 500; color: var(--text-muted); padding-left: 36px;">Programado por Edkallenn</span>
     </div>
 
     <ul class="nav-links">
@@ -149,6 +153,6 @@
   <!-- Toast Notifications Container -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="/js/admin.js?v=1.2.0"></script>
+  <script src="/js/admin.js?v=1.3.0"></script>
 </body>
 </html>

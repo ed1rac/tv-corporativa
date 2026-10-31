@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/player.css?v=1.2.0">
+  <link rel="stylesheet" href="/css/player.css?v=1.3.0">
 </head>
 <body>
 
@@ -25,9 +25,16 @@
         </div>
       </div>
       <div class="company-meta">
-        <span id="headerDisplayBadge" class="screen-badge">TV-01</span>
+        <span id="headerDisplayBadge" class="screen-badge">TV Recepção Principal (TV-01)</span>
+        <span id="headerCredit" class="screen-credit">Programado por Edkallenn</span>
       </div>
     </header>
+
+    <!-- Fallback Badge when Top Header is hidden -->
+    <div id="floatingScreenMeta" class="floating-screen-meta" style="display: none;">
+      <span id="floatingDisplayBadge" class="screen-badge">TV-01</span>
+      <span class="screen-credit">Programado por Edkallenn</span>
+    </div>
 
     <!-- Dynamic Zones Container -->
     <div id="zoneContainer"></div>
@@ -42,8 +49,8 @@
       🎫 Lançar Senha / Guichê
     </button>
 
-    <button id="audioUnmuteBtn" class="floating-action-btn right-btn" title="Clique para liberar som nas chamadas de senha e vídeos">
-      🔊 Ativar Áudio da TV
+    <button id="audioUnmuteBtn" class="audio-toggle-btn muted" title="Clique para ativar ou desativar o som da TV">
+      🔇 Ativar Áudio
     </button>
 
     <!-- Quick Queue & Guichê Launcher Drawer (For Consultório TV) -->
@@ -113,6 +120,6 @@
     </div>
   </div>
 
-  <script src="/js/player.js?v=1.2.0"></script>
+  <script src="/js/player.js?v=1.3.0"></script>
 </body>
 </html>

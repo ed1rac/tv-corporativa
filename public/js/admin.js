@@ -462,7 +462,11 @@ async function renderDashboard() {
             ${displaysData.displays.map((d) => `
               <tr>
                 <td><strong>${escHtml(d.code)}</strong></td>
-                <td>${escHtml(d.name)}<br><small style="color:var(--text-muted)">${escHtml(d.location || '')}</small></td>
+                <td>
+                  <strong>${escHtml(d.name)}</strong>
+                  <div style="font-size:0.75rem;color:var(--text-muted)">${escHtml(d.location || '')}</div>
+                  <div style="font-size:0.68rem;color:rgba(148,163,184,0.82);margin-top:2px;">Programado por Edkallenn</div>
+                </td>
                 <td><span class="badge badge-info">${escHtml(d.layout_name || 'Padrão')}</span></td>
                 <td>${isPortraitOrientation(d.orientation) ? '📱 Vertical (9:16)' : '🖥️ Horizontal (16:9)'} (${escHtml(d.resolution)})</td>
                 <td>
@@ -561,6 +565,7 @@ async function renderDisplays() {
                 <td>
                   <strong>${escHtml(d.name)}</strong>
                   <div style="font-size:0.75rem;color:var(--text-muted)">📍 ${escHtml(d.location || 'Sem local definido')}</div>
+                  <div style="font-size:0.68rem;color:rgba(148,163,184,0.82);margin-top:2px;">Programado por Edkallenn</div>
                 </td>
                 <td>
                   <select class="form-control" style="padding:0.35rem;font-size:0.82rem;" onchange="updateDisplayQuickLayout('${d.id}', this.value)">
@@ -1260,6 +1265,7 @@ async function renderLayouts() {
                   <div>
                     <span class="card-title">${escHtml(l.name)}</span>
                     ${isPreset ? `<span class="badge badge-info" style="margin-left:0.4rem;">Pré-configurado</span>` : `<span class="badge badge-success" style="margin-left:0.4rem;">Customizado</span>`}
+                    <div style="font-size:0.68rem;color:rgba(148,163,184,0.82);margin-top:2px;">Programado por Edkallenn</div>
                   </div>
                   <span class="badge badge-info">${escHtml(l.aspect_ratio)}</span>
                 </div>
@@ -1675,7 +1681,36 @@ async function renderAnnouncements() {
                 <option value="both" ${(s.announcement_mode || 'both') === 'both' ? 'selected' : ''}>🖼️ + 📝 Imagem Fixa + Texto</option>
                 <option value="image" ${s.announcement_mode === 'image' ? 'selected' : ''}>🖼️ Somente Imagem Fixa (Destaque Total)</option>
                 <option value="text" ${s.announcement_mode === 'text' ? 'selected' : ''}>📝 Somente Texto</option>
+                <option value="stream" ${s.announcement_mode === 'stream' ? 'selected' : ''}>📺 / 📻 TV ou Rádio de Streaming ao Vivo (Link)</option>
+                <option value="stream_text" ${s.announcement_mode === 'stream_text' ? 'selected' : ''}>📺 / 📻 Streaming (TV/Rádio) + Texto</option>
               </select>
+            </div>
+          </div>
+
+          <!-- ACESSO A TV / RÁDIO DE STREAMING POR LINK -->
+          <div style="background:rgba(15,23,42,0.65);border:1px solid rgba(56,189,248,0.35);border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+              <label style="font-size:0.84rem;font-weight:700;color:#38bdf8;">📡 TV ou Rádio de Streaming ao Vivo (Link / URL)</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-sm btn-outline" id="btnPresetRadio" style="font-size:0.72rem;padding:3px 8px;">📻 Exemplo Rádio Lounge</button>
+                <button type="button" class="btn btn-sm btn-outline" id="btnPresetTv" style="font-size:0.72rem;padding:3px 8px;">📺 Exemplo TV Vídeo</button>
+                <button type="button" class="btn btn-sm btn-outline" id="btnClearStream" style="font-size:0.72rem;padding:3px 8px;">Limpar Link</button>
+              </div>
+            </div>
+            <div class="grid-3" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;grid-column:span 2;">
+                <input type="url" id="annStreamUrl" class="form-control" value="${escHtml(s.announcement_stream_url || '')}" placeholder="Cole o link: YouTube Live, Rádio (.mp3/.aac/Icecast), TV (.m3u8/.mp4) ou Embed" />
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <select id="annStreamType" class="form-control">
+                  <option value="auto" ${(s.announcement_stream_type || 'auto') === 'auto' ? 'selected' : ''}>🔄 Detectar Automaticamente</option>
+                  <option value="tv" ${s.announcement_stream_type === 'tv' ? 'selected' : ''}>📺 TV / Vídeo / YouTube</option>
+                  <option value="radio" ${s.announcement_stream_type === 'radio' ? 'selected' : ''}>📻 Rádio / Áudio (Equalizador)</option>
+                </select>
+              </div>
+            </div>
+            <div style="font-size:0.73rem;color:var(--text-muted);margin-top:6px;">
+              Dica: Ao informar um link de Rádio ou TV ao vivo, escolha o modo <strong>"📺 / 📻 TV ou Rádio de Streaming"</strong> acima.
             </div>
           </div>
 
@@ -1895,6 +1930,39 @@ async function renderAnnouncements() {
   annFontSizeEl.addEventListener('input', updateAnnTypographyPreview);
   annTextEl.addEventListener('input', updateAnnTypographyPreview);
 
+  // Handlers de Streaming (TV / Rádio) nos Comunicados
+  const annStreamUrlEl = document.getElementById('annStreamUrl');
+  const annStreamTypeEl = document.getElementById('annStreamType');
+  const annModeEl = document.getElementById('annMode');
+
+  document.getElementById('btnPresetRadio')?.addEventListener('click', () => {
+    annStreamUrlEl.value = 'https://ice1.somafm.com/groovesalad-128-mp3';
+    annStreamTypeEl.value = 'radio';
+    if (annModeEl.value !== 'stream_text') annModeEl.value = 'stream';
+    showToast('Rádio Lounge selecionada! Clique em Publicar Comunicado para ouvir na TV.', 'info');
+  });
+
+  document.getElementById('btnPresetTv')?.addEventListener('click', () => {
+    annStreamUrlEl.value = '/media/mov_bbb.mp4';
+    annStreamTypeEl.value = 'tv';
+    if (annModeEl.value !== 'stream_text') annModeEl.value = 'stream';
+    showToast('Stream de TV/Vídeo selecionado! Clique em Publicar Comunicado.', 'info');
+  });
+
+  document.getElementById('btnClearStream')?.addEventListener('click', () => {
+    annStreamUrlEl.value = '';
+    annStreamTypeEl.value = 'auto';
+    if (annModeEl.value === 'stream' || annModeEl.value === 'stream_text') {
+      annModeEl.value = 'both';
+    }
+  });
+
+  annStreamUrlEl.addEventListener('input', () => {
+    if (annStreamUrlEl.value.trim() && annModeEl.value !== 'stream' && annModeEl.value !== 'stream_text') {
+      annModeEl.value = 'stream';
+    }
+  });
+
   document.getElementById('announcementForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -1905,11 +1973,13 @@ async function renderAnnouncements() {
           announcement_mode: document.getElementById('annMode').value,
           announcement_text: document.getElementById('annText').value.trim(),
           announcement_image: annImageSelect.value,
+          announcement_stream_url: annStreamUrlEl.value.trim(),
+          announcement_stream_type: annStreamTypeEl.value,
           announcement_font_family: annFontFamilyEl.value,
           announcement_font_size: String(Math.max(14, Math.min(34, parseInt(annFontSizeEl.value, 10) || 20)))
         })
       });
-      showToast('Comunicado (com fonte e tamanho) publicado instantaneamente na TV!');
+      showToast('Comunicado (Texto, Imagem ou Streaming TV/Rádio) publicado na TV!');
     } catch (err) {
       showToast(err.message, 'error');
     }
