@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  port: parseInt(process.env.PORT || '8080', 10),
+  port: parseInt(process.env.PORT || '5179', 10),
   env: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || 'tvcorporativa_secret_jwt_key_2026_super_secure',
   jwtExpiresIn: '7d',
