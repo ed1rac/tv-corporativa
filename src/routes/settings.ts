@@ -21,11 +21,16 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 });
 
 // Update settings (including announcements, company branding, RSS & weather)
+// Supports both { settings: { key: val } } and flat { key: val }
 router.put('/', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { settings } = req.body; // { key: value, ... }
+    const rawBody = req.body;
+    const settings =
+      rawBody && typeof rawBody.settings === 'object' && !Array.isArray(rawBody.settings)
+        ? rawBody.settings
+        : rawBody;
 
-    if (!settings || typeof settings !== 'object') {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings) || Object.keys(settings).length === 0) {
       res.status(400).json({ error: 'Objeto de configurações inválido.' });
       return;
     }
@@ -46,6 +51,17 @@ router.put('/', authenticateToken, async (req: Request, res: Response): Promise<
     broadcastScreenReload();
 
     res.json({ message: 'Configurações atualizadas com sucesso.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Force reload all screens or a specific screen via WebSocket
+router.post('/reload-screens', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { screenCode } = req.body || {};
+    broadcastScreenReload(screenCode);
+    res.json({ message: 'Sinal de recarregamento enviado para as telas.' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
