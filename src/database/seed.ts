@@ -16,14 +16,16 @@ export async function runSeed(): Promise<void> {
     console.log('[Seed] Created default user: admin (password: tvcorporativa)');
   }
 
-  const existingEd = await db.get('SELECT id FROM users WHERE username = ?', ['edkallenn']);
+  const existingEd = await db.get('SELECT id, name FROM users WHERE username = ?', ['edkallenn']);
   if (!existingEd) {
     const edPassHash = await bcrypt.hash('123456', 10);
     await db.run(
       `INSERT INTO users (id, name, username, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
-      [randomUUID(), 'Ed Kallenn', 'edkallenn', edPassHash, 'admin']
+      [randomUUID(), 'Edkallenn', 'edkallenn', edPassHash, 'admin']
     );
     console.log('[Seed] Created default user: edkallenn (password: 123456)');
+  } else if (existingEd.name !== 'Edkallenn') {
+    await db.run(`UPDATE users SET name = 'Edkallenn' WHERE username = 'edkallenn'`);
   }
 
   // 2. Seed Default Layouts

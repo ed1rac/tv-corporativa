@@ -290,6 +290,10 @@ async function uploadImageFileOrBlob(fileOrBlob, customName = null, duration = 1
 // ============================================================================
 function checkAuth() {
   if (token && currentUser) {
+    if (currentUser.username === 'edkallenn' && currentUser.name === 'Ed Kallenn') {
+      currentUser.name = 'Edkallenn';
+      localStorage.setItem('tv_corp_user', JSON.stringify(currentUser));
+    }
     if (loginContainer) loginContainer.classList.add('hidden');
     if (loggedUserName) loggedUserName.textContent = currentUser.name || currentUser.username;
     if (loggedUserRole) loggedUserRole.textContent = String(currentUser.role || 'admin').toUpperCase();
