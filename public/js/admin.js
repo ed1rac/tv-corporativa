@@ -465,7 +465,7 @@ async function renderDashboard() {
                 <td>
                   <strong>${escHtml(d.name)}</strong>
                   <div style="font-size:0.75rem;color:var(--text-muted)">${escHtml(d.location || '')}</div>
-                  <div style="font-size:0.68rem;color:rgba(148,163,184,0.82);margin-top:2px;">Programado por Edkallenn</div>
+                  <div style="font-size:0.58rem;color:rgba(148,163,184,0.75);margin-top:2px;">feito por EDkallenn</div>
                 </td>
                 <td><span class="badge badge-info">${escHtml(d.layout_name || 'Padrão')}</span></td>
                 <td>${isPortraitOrientation(d.orientation) ? '📱 Vertical (9:16)' : '🖥️ Horizontal (16:9)'} (${escHtml(d.resolution)})</td>
@@ -565,7 +565,7 @@ async function renderDisplays() {
                 <td>
                   <strong>${escHtml(d.name)}</strong>
                   <div style="font-size:0.75rem;color:var(--text-muted)">📍 ${escHtml(d.location || 'Sem local definido')}</div>
-                  <div style="font-size:0.68rem;color:rgba(148,163,184,0.82);margin-top:2px;">Programado por Edkallenn</div>
+                  <div style="font-size:0.58rem;color:rgba(148,163,184,0.75);margin-top:2px;">feito por EDkallenn</div>
                 </td>
                 <td>
                   <select class="form-control" style="padding:0.35rem;font-size:0.82rem;" onchange="updateDisplayQuickLayout('${d.id}', this.value)">
@@ -1265,7 +1265,7 @@ async function renderLayouts() {
                   <div>
                     <span class="card-title">${escHtml(l.name)}</span>
                     ${isPreset ? `<span class="badge badge-info" style="margin-left:0.4rem;">Pré-configurado</span>` : `<span class="badge badge-success" style="margin-left:0.4rem;">Customizado</span>`}
-                    <div style="font-size:0.68rem;color:rgba(148,163,184,0.82);margin-top:2px;">Programado por Edkallenn</div>
+                    <div style="font-size:0.58rem;color:rgba(148,163,184,0.75);margin-top:2px;">feito por EDkallenn</div>
                   </div>
                   <span class="badge badge-info">${escHtml(l.aspect_ratio)}</span>
                 </div>

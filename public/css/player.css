@@ -104,10 +104,10 @@ body, html {
 }
 
 .screen-credit {
-  font-size: 0.68rem;
-  color: rgba(226, 232, 240, 0.75);
+  font-size: 0.56rem;
+  color: rgba(226, 232, 240, 0.68);
   font-weight: 500;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   padding-right: 4px;
 }
 
