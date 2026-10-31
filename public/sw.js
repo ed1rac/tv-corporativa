@@ -1,6 +1,5 @@
-const CACHE_NAME = 'tv-corporativa-v2';
+const CACHE_NAME = 'tv-corporativa-v3';
 const STATIC_ASSETS = [
-  '/',
   '/player',
   '/player.html',
   '/css/player.css',

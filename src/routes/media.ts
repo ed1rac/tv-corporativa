@@ -6,6 +6,7 @@ import { db } from '../database/connection.js';
 import { config } from '../config/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { broadcastScreenReload } from '../services/websocket.js';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response): Promise<
   }
 });
 
-// Upload single media file
+// Upload single media file (multipart/form-data, also works with Clipboard File paste!)
 router.post('/upload', authenticateToken, upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
@@ -32,6 +33,7 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
     const mediaType = isVideo ? 'video' : 'image';
     const id = randomUUID();
     const duration = isVideo ? (parseInt(req.body.duration, 10) || 15) : (parseInt(req.body.duration, 10) || 10);
+    const customName = req.body.name ? String(req.body.name).trim() : file.originalname;
 
     await db.run(`
       INSERT INTO media (id, filename, original_name, media_type, mime_type, file_size, duration_seconds, storage_path)
@@ -39,21 +41,51 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
     `, [
       id,
       file.filename,
-      file.originalname,
+      customName,
       mediaType,
       file.mimetype,
       file.size,
       duration,
-      file.path
+      file.filename
     ]);
 
     const created = await db.get('SELECT * FROM media WHERE id = ?', [id]);
     res.status(201).json({
       message: 'Arquivo enviado com sucesso.',
-      media: created
+      media: created,
+      url: `/media/${file.filename}`
     });
   } catch (err: any) {
     console.error('Upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update media metadata (name / default duration)
+router.put('/:id', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { original_name, duration_seconds } = req.body;
+
+    const existing = await db.get('SELECT * FROM media WHERE id = ?', [id]);
+    if (!existing) {
+      res.status(404).json({ error: 'Mídia não encontrada.' });
+      return;
+    }
+
+    await db.run(
+      'UPDATE media SET original_name = ?, duration_seconds = ? WHERE id = ?',
+      [
+        original_name ? String(original_name).trim() : existing.original_name,
+        duration_seconds ? parseInt(duration_seconds, 10) : existing.duration_seconds,
+        id
+      ]
+    );
+
+    broadcastScreenReload();
+    const updated = await db.get('SELECT * FROM media WHERE id = ?', [id]);
+    res.json({ message: 'Mídia atualizada com sucesso.', media: updated });
+  } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -68,18 +100,21 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response): Pr
       return;
     }
 
-    // Remove from disk
-    const filePath = path.resolve(config.mediaPath, media.filename);
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (e) {
-        console.warn('Could not remove file from disk:', e);
+    // Do not delete pre-bundled sample files from disk if they are shared, or delete uploaded files safely
+    const protectedSamples = ['luds01.png', 'luds02.png', 'luds03.png', 'mov_bbb.mp4', 'movie.mp4', 'luds_logo100.png'];
+    if (!protectedSamples.includes(media.filename)) {
+      const filePath = path.resolve(config.mediaPath, media.filename);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (e) {
+          console.warn('Could not remove file from disk:', e);
+        }
       }
     }
 
-    // Remove from DB (cascade removes playlist_items)
     await db.run('DELETE FROM media WHERE id = ?', [id]);
+    broadcastScreenReload();
     res.json({ message: 'Arquivo de mídia removido com sucesso.' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -114,7 +149,6 @@ router.get('/stream/:filename', (req: Request, res: Response): void => {
   const contentType = mimeTypes[ext] || 'application/octet-stream';
 
   if (range && contentType.startsWith('video/')) {
-    // HTTP 206 Partial Content for video seeking
     const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
@@ -129,7 +163,6 @@ router.get('/stream/:filename', (req: Request, res: Response): void => {
     res.writeHead(206, head);
     file.pipe(res);
   } else {
-    // Full content
     const head = {
       'Content-Length': fileSize,
       'Content-Type': contentType,

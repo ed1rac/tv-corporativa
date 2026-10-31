@@ -1,4 +1,4 @@
-// TV Corporativa - Player Engine v2.0
+// TV Corporativa - Player Engine v2.1
 (function () {
   'use strict';
 
@@ -7,14 +7,15 @@
   let displayData = null;
   let layoutConfig = null;
   let playlistItems = [];
+  let settings = {};
   let currentItemIndex = -1;
   let mediaTimer = null;
+  let isPaused = false;
   let ws = null;
   let audioUnlocked = false;
   let weatherInterval = null;
   let clockInterval = null;
-
-  // Audio Context for Chime (zero external dependencies)
+  let rssInterval = null;
   let audioCtx = null;
 
   function initAudioContext() {
@@ -29,8 +30,9 @@
     }
   }
 
-  // Play pleasant clinic chime (Do-Mi-Sol chord)
+  // Play pleasant clinic chime (Do-Mi-Sol-Do chord)
   function playChime() {
+    if (!audioUnlocked) return;
     try {
       initAudioContext();
       if (!audioCtx) return;
@@ -61,11 +63,16 @@
   }
 
   // Speak ticket call
-  function speakTicket(ticketNum, location) {
+  function speakTicket(ticket) {
+    if (!audioUnlocked || settings.enable_tts === 'false') return;
     if ('speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
-        const text = `Atenção. Senha ${ticketNum}. Comparecer ao ${location}.`;
+        let text = `Atenção. Senha ${ticket.ticket_number}.`;
+        if (ticket.patient_name) {
+          text += ` ${ticket.patient_name}.`;
+        }
+        text += ` Comparecer ao ${ticket.location}.`;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
         utterance.rate = 0.95;
@@ -78,7 +85,7 @@
 
   // Parse Query Params
   const urlParams = new URLSearchParams(window.location.search);
-  displayCode = (urlParams.get('code') || 'TV-01').toUpperCase();
+  displayCode = (urlParams.get('code') || urlParams.get('screen') || 'TV-01').toUpperCase();
 
   // Register Service Worker
   if ('serviceWorker' in navigator) {
@@ -93,29 +100,93 @@
   const zoneContainer = document.getElementById('zoneContainer');
   const queuePopup = document.getElementById('queuePopup');
   const audioUnmuteBtn = document.getElementById('audioUnmuteBtn');
+  const queueDrawerBtn = document.getElementById('queueDrawerBtn');
+  const queueDrawer = document.getElementById('queueDrawer');
+  const closeDrawerBtn = document.getElementById('closeDrawerBtn');
   const offlineBanner = document.getElementById('offlineBanner');
 
-  // Handle Unmute Button Click
+  // Handle Audio Toggle Button Click (Ativar / Desativar Áudio da TV)
+  function syncStreamAudioState() {
+    document.querySelectorAll('.ann-stream-media').forEach((mediaEl) => {
+      mediaEl.muted = !audioUnlocked;
+      if (audioUnlocked) {
+        mediaEl.play().catch(() => {});
+      }
+    });
+    const eq = document.querySelector('.radio-equalizer');
+    if (eq) {
+      eq.classList.toggle('paused', !audioUnlocked);
+    }
+    const ytIframe = document.querySelector('.ann-stream-iframe[data-yt-base]');
+    if (ytIframe) {
+      const base = ytIframe.getAttribute('data-yt-base');
+      ytIframe.src = `${base}&mute=${audioUnlocked ? 0 : 1}`;
+    }
+  }
+
   if (audioUnmuteBtn) {
     audioUnmuteBtn.addEventListener('click', () => {
-      audioUnlocked = true;
-      initAudioContext();
-      playChime();
-      audioUnmuteBtn.style.display = 'none';
-      console.log('[Audio] Audio policy unlocked by user gesture.');
+      audioUnlocked = !audioUnlocked;
+      if (audioUnlocked) {
+        audioUnmuteBtn.classList.remove('muted');
+        audioUnmuteBtn.classList.add('unmuted');
+        audioUnmuteBtn.innerHTML = '🔊 Áudio Ativo (Silenciar)';
+        initAudioContext();
+        playChime();
+        if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
+          activeMediaElement.muted = false;
+        }
+      } else {
+        audioUnmuteBtn.classList.remove('unmuted');
+        audioUnmuteBtn.classList.add('muted');
+        audioUnmuteBtn.innerHTML = '🔇 Ativar Áudio';
+        if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
+          activeMediaElement.muted = true;
+        }
+        if ('speechSynthesis' in window) {
+          try { window.speechSynthesis.cancel(); } catch (e) {}
+        }
+      }
+      syncStreamAudioState();
     });
   }
+
+  // Handle Queue Launcher Drawer
+  if (queueDrawerBtn && queueDrawer) {
+    queueDrawerBtn.addEventListener('click', () => {
+      queueDrawer.classList.add('open');
+      fetchRecentQueue();
+    });
+  }
+  if (closeDrawerBtn && queueDrawer) {
+    closeDrawerBtn.addEventListener('click', () => {
+      queueDrawer.classList.remove('open');
+    });
+  }
+
+  // Keyboard navigation for slides
+  window.addEventListener('keydown', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      playSlideAt(currentItemIndex + 1);
+    } else if (e.key === 'ArrowLeft') {
+      playSlideAt(currentItemIndex - 1);
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      toggleCarouselPause();
+    }
+  });
 
   // Offline / Online network listeners
   window.addEventListener('online', () => {
     if (offlineBanner) offlineBanner.style.display = 'none';
-    console.log('[Network] Online');
     fetchDisplayData();
   });
 
   window.addEventListener('offline', () => {
     if (offlineBanner) offlineBanner.style.display = 'flex';
-    console.warn('[Network] Offline mode active');
   });
 
   // WebSocket Setup
@@ -126,10 +197,8 @@
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('[WebSocket] Connected. Registering display:', displayCode);
       ws.send(JSON.stringify({ type: 'display:register', displayCode }));
 
-      // Heartbeat ping every 25 seconds
       setInterval(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'display:ping', displayCode }));
@@ -142,13 +211,15 @@
         const msg = JSON.parse(event.data);
 
         if (msg.type === 'screen:reload') {
-          console.log('[WebSocket] Received screen:reload event. Refreshing content...');
           fetchDisplayData();
         }
 
         if (msg.type === 'queue:call') {
-          console.log('[WebSocket] Received queue:call event:', msg.data);
           handleQueueCall(msg.data);
+        }
+
+        if (msg.type === 'queue:updated') {
+          fetchRecentQueue();
         }
       } catch (err) {
         console.error('[WebSocket] Error handling message:', err);
@@ -156,46 +227,38 @@
     };
 
     ws.onclose = () => {
-      console.warn('[WebSocket] Disconnected. Reconnecting in 5 seconds...');
       setTimeout(connectWebSocket, 5000);
     };
 
-    ws.onerror = (err) => {
-      console.warn('[WebSocket] Error:', err);
+    ws.onerror = () => {
       ws.close();
     };
   }
 
   // Handle Queue Ticket Call
   function handleQueueCall(ticket) {
-    // 1. Play Chime
     playChime();
 
-    // 2. Speak Ticket (after chime delay)
     setTimeout(() => {
-      speakTicket(ticket.ticket_number, ticket.location);
+      speakTicket(ticket);
     }, 900);
 
-    // 3. Show Big Screen Popup
     if (queuePopup) {
+      const tagEl = document.getElementById('popupServiceTag');
+      if (tagEl) {
+        tagEl.innerText = `${ticket.service_name || 'ATENDIMENTO'} (${ticket.service_type || 'Normal'})`;
+      }
       document.getElementById('popupTicket').innerText = ticket.ticket_number;
       document.getElementById('popupLocation').innerText = ticket.location;
       document.getElementById('popupPatient').innerText = ticket.patient_name ? `Paciente: ${ticket.patient_name}` : '';
       queuePopup.classList.add('show');
 
-      // Auto-hide popup after 10 seconds
       setTimeout(() => {
         queuePopup.classList.remove('show');
-      }, 10000);
+      }, 9500);
     }
 
-    // 4. Update any sidebar queue widget in DOM
-    const sidebarTicketNum = document.getElementById('sidebarQueueNum');
-    const sidebarLocation = document.getElementById('sidebarQueueLocation');
-    const sidebarPatient = document.getElementById('sidebarQueuePatient');
-    if (sidebarTicketNum) sidebarTicketNum.innerText = ticket.ticket_number;
-    if (sidebarLocation) sidebarLocation.innerText = ticket.location;
-    if (sidebarPatient) sidebarPatient.innerText = ticket.patient_name ? `Paciente: ${ticket.patient_name}` : '';
+    fetchRecentQueue();
   }
 
   // Fetch Display & Layout Data
@@ -209,10 +272,11 @@
       displayData = data;
       layoutConfig = data.layout.config;
       playlistItems = data.playlist.items || [];
+      settings = data.settings || {};
 
-      // Save to localStorage for offline fallback
       localStorage.setItem(`tv_cache_${displayCode}`, JSON.stringify(data));
 
+      applyBrandingAndHeader();
       renderLayout();
     } catch (err) {
       console.warn('[Player] Could not fetch online data, attempting cache:', err);
@@ -222,8 +286,61 @@
         displayData = data;
         layoutConfig = data.layout.config;
         playlistItems = data.playlist.items || [];
+        settings = data.settings || {};
+        applyBrandingAndHeader();
         renderLayout();
         if (offlineBanner) offlineBanner.style.display = 'flex';
+      }
+    }
+  }
+
+  // Render Top Company Header Bar (Logo + Company Name)
+  function applyBrandingAndHeader() {
+    const primaryColor = settings.theme_color || '#1e40af';
+    document.documentElement.style.setProperty('--primary-color', primaryColor);
+
+    const headerEl = document.getElementById('companyHeader');
+    const logoEl = document.getElementById('headerLogo');
+    const titleEl = document.getElementById('headerTitle');
+    const subEl = document.getElementById('headerSubtitle');
+    const badgeEl = document.getElementById('headerDisplayBadge');
+
+    const showGlobalHeader = settings.show_company_header !== 'false';
+    const showScreenHeader = displayData && displayData.display ? displayData.display.show_header !== false : true;
+    const floatingMetaEl = document.getElementById('floatingScreenMeta');
+    const floatingBadgeEl = document.getElementById('floatingDisplayBadge');
+    const screenLabel = displayData && displayData.display
+      ? `${displayData.display.name} (${displayData.display.code})`
+      : displayCode;
+
+    if (headerEl) {
+      if (showGlobalHeader && showScreenHeader) {
+        headerEl.style.display = 'flex';
+        if (floatingMetaEl) floatingMetaEl.style.display = 'none';
+        if (titleEl) titleEl.innerText = settings.site_title || 'TV Corporativa';
+        if (subEl) {
+          subEl.innerText = settings.company_subtitle || '';
+          subEl.style.display = settings.company_subtitle ? 'block' : 'none';
+        }
+        if (logoEl) {
+          if (settings.company_logo) {
+            logoEl.src = settings.company_logo.startsWith('/') || settings.company_logo.startsWith('http')
+              ? settings.company_logo
+              : `/media/${settings.company_logo}`;
+            logoEl.style.display = 'block';
+          } else {
+            logoEl.style.display = 'none';
+          }
+        }
+        if (badgeEl) {
+          badgeEl.innerText = screenLabel;
+        }
+      } else {
+        headerEl.style.display = 'none';
+        if (floatingMetaEl) {
+          floatingMetaEl.style.display = 'flex';
+          if (floatingBadgeEl) floatingBadgeEl.innerText = screenLabel;
+        }
       }
     }
   }
@@ -235,172 +352,410 @@
       return;
     }
 
-    // Clear container
     zoneContainer.innerHTML = '';
+    let hasQueueZone = false;
 
-    // Create DOM for each zone
     layoutConfig.zones.forEach((zone) => {
       const zoneDiv = document.createElement('div');
       zoneDiv.className = `tv-zone zone-${zone.type.toLowerCase()}`;
       zoneDiv.id = zone.id;
 
-      // Apply bounds
       if (zone.bounds) {
-        zoneDiv.style.top = zone.bounds.top;
-        zoneDiv.style.left = zone.bounds.left;
-        zoneDiv.style.width = zone.bounds.width;
-        zoneDiv.style.height = zone.bounds.height;
+        const fmtPct = (v) => (String(v).endsWith('%') ? String(v) : `${parseFloat(v) || 0}%`);
+        zoneDiv.style.top = fmtPct(zone.bounds.top);
+        zoneDiv.style.left = fmtPct(zone.bounds.left);
+        zoneDiv.style.width = fmtPct(zone.bounds.width);
+        zoneDiv.style.height = fmtPct(zone.bounds.height);
       }
 
-      // Render Zone content based on type
       if (zone.type === 'PLAYLIST') {
         renderMediaZone(zoneDiv);
       } else if (zone.type === 'COMPOSITE' || zone.type === 'SIDEBAR') {
-        renderSidebarZone(zoneDiv, zone.sub_widgets || []);
+        const subWidgets = zone.sub_widgets || [];
+        if (subWidgets.some((w) => w.type === 'QUEUE_CALL')) {
+          hasQueueZone = true;
+        }
+        const isHorizontal = parseFloat(zone.bounds?.height || '100') <= 25 && parseFloat(zone.bounds?.width || '100') >= 80;
+        renderSidebarZone(zoneDiv, subWidgets, isHorizontal);
       } else if (zone.type === 'RSS_TICKER' || zone.type === 'ANNOUNCEMENTS_TICKER') {
         renderTickerZone(zoneDiv);
       } else if (zone.type === 'ANNOUNCEMENTS') {
         renderAnnouncementsZone(zoneDiv);
+      } else if (zone.type === 'QUEUE_CALL') {
+        hasQueueZone = true;
+        renderSidebarZone(zoneDiv, [{ type: 'QUEUE_CALL' }], false);
+      } else if (zone.type === 'CLOCK') {
+        renderSidebarZone(zoneDiv, [{ type: 'CLOCK' }], false);
+      } else if (zone.type === 'WEATHER') {
+        renderSidebarZone(zoneDiv, [{ type: 'WEATHER' }], false);
       }
 
       zoneContainer.appendChild(zoneDiv);
     });
 
-    // Start Widgets
+    // Show Quick Queue Launcher button if screen has queue functionality
+    if (queueDrawerBtn) {
+      queueDrawerBtn.style.display = hasQueueZone ? 'flex' : 'none';
+    }
+
     startClock();
     startWeather();
     startRssTicker();
-
-    // Start Media Player Engine
     startMediaPlayer();
   }
 
-  // Media Player Engine
+  // Media Player Engine + Carousel Controls
   let activeMediaElement = null;
-  let nextMediaElement = null;
 
   function renderMediaZone(container) {
     container.innerHTML = `
       <div class="zone-media-wrapper" id="mediaWrapper">
-        <div id="mediaPlaceholder" style="color: #6b7280; font-size: 1.5rem; text-align: center;">
-          Carregando playlist da TV...
+        <div id="mediaPlaceholder" style="color: #6b7280; font-size: 1.4rem; text-align: center;">
+          Carregando programação da TV...
+        </div>
+
+        <!-- Standard Carousel Prev / Next Arrows -->
+        <button class="carousel-nav-btn carousel-prev" id="btnPrevSlide" title="Slide Anterior (Seta Esquerda)">&#10094;</button>
+        <button class="carousel-nav-btn carousel-next" id="btnNextSlide" title="Próximo Slide (Seta Direita)">&#10095;</button>
+
+        <!-- Standard Carousel Dots & Pause Bar -->
+        <div class="carousel-bottom-bar" id="carouselBottomBar">
+          <div class="carousel-dots" id="carouselDots"></div>
+          <button class="carousel-pause-btn" id="btnPauseCarousel" title="Pausar / Continuar Rotação (Espaço)">⏸</button>
         </div>
       </div>
     `;
+
+    const prevBtn = container.querySelector('#btnPrevSlide');
+    const nextBtn = container.querySelector('#btnNextSlide');
+    const pauseBtn = container.querySelector('#btnPauseCarousel');
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSlideAt(currentItemIndex - 1);
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSlideAt(currentItemIndex + 1);
+      });
+    }
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleCarouselPause();
+      });
+    }
+  }
+
+  function renderCarouselDots() {
+    const dotsContainer = document.getElementById('carouselDots');
+    if (!dotsContainer) return;
+
+    if (!playlistItems || playlistItems.length <= 1) {
+      dotsContainer.innerHTML = '';
+      return;
+    }
+
+    dotsContainer.innerHTML = playlistItems.map((item, idx) => `
+      <button class="carousel-dot ${idx === currentItemIndex ? 'active' : ''}"
+              data-idx="${idx}"
+              title="Slide ${idx + 1}: ${item.original_name || item.filename || ''}"></button>
+    `).join('');
+
+    dotsContainer.querySelectorAll('.carousel-dot').forEach((dot) => {
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetIdx = parseInt(dot.getAttribute('data-idx'), 10);
+        playSlideAt(targetIdx);
+      });
+    });
+  }
+
+  function toggleCarouselPause() {
+    isPaused = !isPaused;
+    const pauseBtn = document.getElementById('btnPauseCarousel');
+    if (pauseBtn) {
+      pauseBtn.innerText = isPaused ? '▶' : '⏸';
+    }
+
+    if (isPaused) {
+      if (mediaTimer) clearTimeout(mediaTimer);
+      if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
+        activeMediaElement.pause();
+      }
+    } else {
+      if (activeMediaElement && activeMediaElement.tagName === 'VIDEO') {
+        activeMediaElement.play().catch(() => {});
+      } else {
+        playSlideAt(currentItemIndex + 1);
+      }
+    }
   }
 
   function startMediaPlayer() {
     if (mediaTimer) clearTimeout(mediaTimer);
     currentItemIndex = -1;
+    activeMediaElement = null;
 
     if (!playlistItems || playlistItems.length === 0) {
       const wrapper = document.getElementById('mediaWrapper');
       if (wrapper) {
         wrapper.innerHTML = `
-          <div style="color: #9ca3af; font-size: 1.8rem; text-align: center; padding: 20px;">
+          <div style="color: #9ca3af; font-size: 1.5rem; text-align: center; padding: 20px;">
             <h2>TV Corporativa</h2>
-            <p style="font-size: 1.2rem; margin-top: 10px;">Nenhuma mídia ativa cadastrada na playlist desta tela.</p>
+            <p style="font-size: 1.1rem; margin-top: 10px;">Nenhuma mídia ativa cadastrada na playlist desta tela.</p>
           </div>
         `;
       }
       return;
     }
 
-    playNextMedia();
+    playSlideAt(0);
   }
 
-  function playNextMedia() {
-    if (playlistItems.length === 0) return;
+  function playSlideAt(targetIndex) {
+    if (!playlistItems || playlistItems.length === 0) return;
+    if (mediaTimer) clearTimeout(mediaTimer);
 
-    currentItemIndex = (currentItemIndex + 1) % playlistItems.length;
+    const len = playlistItems.length;
+    currentItemIndex = ((targetIndex % len) + len) % len;
+
     const item = playlistItems[currentItemIndex];
     const wrapper = document.getElementById('mediaWrapper');
     if (!wrapper) return;
 
-    // Remove placeholder
     const placeholder = document.getElementById('mediaPlaceholder');
     if (placeholder) placeholder.remove();
+
+    renderCarouselDots();
 
     const mediaUrl = item.filename ? `/media/${item.filename}` : '';
     const isVideo = item.media_type === 'video';
 
-    // Create new media element
     let el;
     if (isVideo) {
       el = document.createElement('video');
       el.className = 'media-item';
       el.src = mediaUrl;
-      el.autoplay = true;
+      el.autoplay = !isPaused;
       el.playsInline = true;
-      el.muted = !audioUnlocked; // muted by default unless user unmuted
+      el.muted = !audioUnlocked;
       el.controls = false;
       el.preload = 'auto';
 
       let transitioned = false;
       const transitionNext = () => {
-        if (!transitioned) {
+        if (!transitioned && !isPaused) {
           transitioned = true;
-          playNextMedia();
+          playSlideAt(currentItemIndex + 1);
         }
       };
 
-      // Video finishes naturally
       el.addEventListener('ended', transitionNext);
+      mediaTimer = setTimeout(transitionNext, 90000);
 
-      // Safety timeout: if video fails or freezes, advance after 60s max
-      mediaTimer = setTimeout(transitionNext, 60000);
-
-      el.addEventListener('error', (err) => {
-        console.warn('[Video Error] Could not play video:', mediaUrl, err);
+      el.addEventListener('error', () => {
         setTimeout(transitionNext, 3000);
       });
     } else {
-      // Image item
       el = document.createElement('img');
       el.className = 'media-item';
       el.src = mediaUrl;
 
-      const duration = (item.duration_seconds || 10) * 1000;
-      mediaTimer = setTimeout(() => {
-        playNextMedia();
-      }, duration);
+      if (!isPaused) {
+        const duration = (item.duration_seconds || 10) * 1000;
+        mediaTimer = setTimeout(() => {
+          playSlideAt(currentItemIndex + 1);
+        }, duration);
+      }
     }
 
     wrapper.appendChild(el);
-
-    // Force reflow for CSS opacity fade
     void el.offsetWidth;
     el.classList.add('active');
 
-    // Remove previous element after crossfade (800ms)
-    if (activeMediaElement) {
+    if (activeMediaElement && activeMediaElement !== el) {
       const oldEl = activeMediaElement;
       oldEl.classList.remove('active');
+      if (oldEl.tagName === 'VIDEO') {
+        try { oldEl.pause(); } catch (e) {}
+      }
       setTimeout(() => {
         if (oldEl && oldEl.parentNode) {
           oldEl.parentNode.removeChild(oldEl);
         }
-      }, 900);
+      }, 650);
     }
 
     activeMediaElement = el;
   }
 
-  // Sidebar Zone Renderer
-  function renderSidebarZone(container, subWidgets) {
-    let html = '<div class="zone-sidebar-wrapper">';
+  // Helper to build Streaming TV / Radio player inside Announcements zone
+  function buildStreamEmbedHtml(streamUrl, streamType, title) {
+    const cleanUrl = String(streamUrl || '').trim();
+    if (!cleanUrl) return '';
+
+    const lower = cleanUrl.toLowerCase();
+    const isYoutube = lower.includes('youtube.com/') || lower.includes('youtu.be/');
+    const isRadio =
+      streamType === 'radio' ||
+      (streamType === 'auto' &&
+        (lower.endsWith('.mp3') ||
+          lower.endsWith('.aac') ||
+          lower.endsWith('.ogg') ||
+          lower.includes('icecast') ||
+          lower.includes('shoutcast') ||
+          lower.includes('radio') ||
+          lower.includes('stream')));
+    const isDirectVideo =
+      lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.m3u8');
+
+    if (isYoutube) {
+      let videoId = '';
+      try {
+        if (lower.includes('youtu.be/')) {
+          videoId = cleanUrl.split('youtu.be/')[1].split(/[?&]/)[0];
+        } else if (lower.includes('/live/')) {
+          videoId = cleanUrl.split('/live/')[1].split(/[?&]/)[0];
+        } else if (lower.includes('/embed/')) {
+          videoId = cleanUrl.split('/embed/')[1].split(/[?&]/)[0];
+        } else {
+          const u = new URL(cleanUrl);
+          videoId = u.searchParams.get('v') || '';
+        }
+      } catch (e) {}
+
+      if (videoId) {
+        const baseEmbed = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0`;
+        const embedSrc = `${baseEmbed}&mute=${audioUnlocked ? 0 : 1}`;
+        return `
+          <div class="announcement-stream-wrapper">
+            <iframe class="ann-stream-iframe" data-yt-base="${escapeHtml(baseEmbed)}" src="${escapeHtml(embedSrc)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+          </div>
+        `;
+      }
+    }
+
+    if (isRadio) {
+      return `
+        <div class="announcement-stream-wrapper">
+          <div class="radio-stream-card">
+            <span class="radio-live-pill">● RÁDIO / ÁUDIO AO VIVO</span>
+            <div class="radio-equalizer ${audioUnlocked ? '' : 'paused'}">
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+            </div>
+            <div style="font-size:0.85rem;font-weight:700;color:#e2e8f0;">${escapeHtml(title || 'Sintonizado na Rádio')}</div>
+            <audio class="ann-stream-media" src="${escapeHtml(cleanUrl)}" autoplay ${audioUnlocked ? '' : 'muted'} controls style="width:100%;max-width:250px;height:32px;"></audio>
+          </div>
+        </div>
+      `;
+    }
+
+    if (isDirectVideo) {
+      return `
+        <div class="announcement-stream-wrapper">
+          <video class="ann-stream-video ann-stream-media" src="${escapeHtml(cleanUrl)}" autoplay loop playsinline ${audioUnlocked ? '' : 'muted'} controls></video>
+        </div>
+      `;
+    }
+
+    // Generic TV / Web Embed iframe
+    return `
+      <div class="announcement-stream-wrapper">
+        <iframe class="ann-stream-iframe" src="${escapeHtml(cleanUrl)}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+      </div>
+    `;
+  }
+
+  // Announcements Content Builder (Supports Fixed Image, Text, Custom Font/Size & Live TV/Radio Stream)
+  function buildAnnouncementsHtml(isFullZone) {
+    const title = settings.announcement_title || '📢 COMUNICADOS & AVISOS';
+    const text = settings.announcement_text || 'Bem-vindo! Fique atento aos comunicados internos no painel.';
+    const rawImg = settings.announcement_image || '';
+    const imgUrl = rawImg
+      ? (rawImg.startsWith('/') || rawImg.startsWith('http') ? rawImg : `/media/${rawImg}`)
+      : '';
+    const streamUrl = (settings.announcement_stream_url || '').trim();
+    const streamType = settings.announcement_stream_type || 'auto';
+    const mode = settings.announcement_mode || 'both'; // 'both', 'image', 'text', 'stream', 'stream_text'
+    const fontFamily = settings.announcement_font_family || "'Roboto', sans-serif";
+    const rawSize = parseInt(settings.announcement_font_size, 10) || (isFullZone ? 22 : 20);
+    // Clamp safely so text never overflows or breaks the card/window
+    const safeTextOnlySize = Math.max(14, Math.min(34, rawSize));
+    const safeCombinedSize = Math.max(13, Math.min(22, rawSize));
+
+    let innerContent = '';
+
+    if ((mode === 'stream' || mode === 'stream_text') && streamUrl) {
+      const streamHtml = buildStreamEmbedHtml(streamUrl, streamType, title);
+      if (mode === 'stream_text' && text) {
+        innerContent = `
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;max-height:68%;">
+            ${streamHtml}
+          </div>
+          <div class="announcement-body" style="font-family: ${escapeHtml(fontFamily)}; font-size: ${safeCombinedSize}px;">${escapeHtml(text)}</div>
+        `;
+      } else {
+        innerContent = streamHtml;
+      }
+    } else if (mode === 'image' && imgUrl) {
+      innerContent = `
+        <div class="announcement-img-wrapper">
+          <img src="${imgUrl}" alt="Comunicado" class="announcement-fixed-img">
+        </div>
+      `;
+    } else if (mode === 'both' && imgUrl) {
+      innerContent = `
+        <div class="announcement-img-wrapper" style="max-height: 68%;">
+          <img src="${imgUrl}" alt="Comunicado" class="announcement-fixed-img">
+        </div>
+        ${text ? `<div class="announcement-body" style="font-family: ${escapeHtml(fontFamily)}; font-size: ${safeCombinedSize}px;">${escapeHtml(text)}</div>` : ''}
+      `;
+    } else {
+      innerContent = `
+        <div class="announcement-body" style="font-family: ${escapeHtml(fontFamily)}; font-size: ${safeTextOnlySize}px;">${escapeHtml(text)}</div>
+      `;
+    }
+
+    return `
+      <div class="widget-title">${escapeHtml(title)}</div>
+      <div class="announcement-content-area">
+        ${innerContent}
+      </div>
+    `;
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Sidebar / Composite Zone Renderer
+  function renderSidebarZone(container, subWidgets, isHorizontal) {
+    let html = `<div class="zone-sidebar-wrapper ${isHorizontal ? 'zone-sidebar-horizontal' : ''}">`;
 
     subWidgets.forEach((w) => {
+      const styleAttr = isHorizontal && w.width ? `style="flex: 1;"` : '';
       if (w.type === 'CLOCK') {
         html += `
-          <div class="widget-card widget-clock" id="clockCard">
+          <div class="widget-card widget-clock" ${styleAttr}>
             <div class="clock-time" id="clockTime">--:--</div>
             <div class="clock-date" id="clockDate">--</div>
           </div>
         `;
       } else if (w.type === 'WEATHER') {
         html += `
-          <div class="widget-card widget-weather" id="weatherCard">
+          <div class="widget-card widget-weather" ${styleAttr}>
             <div class="weather-left">
               <div class="weather-icon" id="weatherIcon">⛅</div>
               <div class="weather-temp" id="weatherTemp">--°</div>
@@ -415,18 +770,34 @@
       } else if (w.type === 'QUEUE_CALL') {
         html += `
           <div class="widget-card widget-queue" id="queueCard">
-            <div class="queue-badge">ÚLTIMA SENHA CHAMADA</div>
-            <div class="queue-ticket-num" id="sidebarQueueNum">---</div>
-            <div class="queue-location" id="sidebarQueueLocation">Aguardando chamada...</div>
-            <div class="queue-patient" id="sidebarQueuePatient"></div>
+            <div class="queue-current-box">
+              <div class="queue-badge" id="sidebarQueueBadge">SENHA EM ATENDIMENTO</div>
+              <div class="queue-ticket-num" id="sidebarQueueNum">---</div>
+              <div class="queue-location" id="sidebarQueueLocation">Aguardando chamada...</div>
+              <div class="queue-service-tag" id="sidebarQueueService"></div>
+              <div class="queue-patient" id="sidebarQueuePatient"></div>
+            </div>
+            <div class="queue-history-box">
+              <div class="queue-history-title">
+                <span>Últimas Chamadas</span>
+                <span id="sidebarWaitingCounter">Fila: 0</span>
+              </div>
+              <div class="queue-history-list" id="sidebarQueueHistory"></div>
+            </div>
           </div>
         `;
-      } else if (w.type === 'ANNOUNCEMENTS') {
+      } else if (w.type === 'ANNOUNCEMENTS' || w.type === 'QR_ANNOUNCEMENT') {
         html += `
-          <div class="widget-card widget-announcements">
-            <div class="widget-title">📢 COMUNICADOS</div>
-            <div class="announcement-body">
-              Seja bem-vindo(a). Por gentileza, aguarde a chamada de sua senha no painel digital.
+          <div class="widget-card widget-announcements" ${styleAttr}>
+            ${buildAnnouncementsHtml(false)}
+          </div>
+        `;
+      } else if (w.type === 'RSS_TICKER') {
+        html += `
+          <div class="zone-ticker-wrapper" style="border-radius: 8px; min-height: 48px;">
+            <div class="ticker-label">NOTÍCIAS</div>
+            <div class="ticker-marquee">
+              <div class="ticker-content rss-ticker-target">Carregando notícias em tempo real...</div>
             </div>
           </div>
         `;
@@ -436,27 +807,213 @@
     html += '</div>';
     container.innerHTML = html;
 
-    // Load recent queue call immediately
     fetchRecentQueue();
   }
 
+  // Fetch Queue Data & Populate Sidebar + Launcher Drawer
   async function fetchRecentQueue() {
     try {
       const res = await fetch('/api/queue/recent');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.calls && data.calls.length > 0) {
-          const last = data.calls[0];
-          const numEl = document.getElementById('sidebarQueueNum');
-          const locEl = document.getElementById('sidebarQueueLocation');
-          const patEl = document.getElementById('sidebarQueuePatient');
-          if (numEl) numEl.innerText = last.ticket_number;
-          if (locEl) locEl.innerText = last.location;
-          if (patEl) patEl.innerText = last.patient_name ? `Paciente: ${last.patient_name}` : '';
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const calls = data.calls || [];
+      const waiting = data.waiting || [];
+      const desks = data.desks || [];
+      const services = data.services || [];
+
+      // 1. Update Sidebar Queue Display
+      if (calls.length > 0) {
+        const last = calls[0];
+        const numEl = document.getElementById('sidebarQueueNum');
+        const locEl = document.getElementById('sidebarQueueLocation');
+        const srvEl = document.getElementById('sidebarQueueService');
+        const patEl = document.getElementById('sidebarQueuePatient');
+        const badgeEl = document.getElementById('sidebarQueueBadge');
+
+        if (numEl) numEl.innerText = last.ticket_number;
+        if (locEl) locEl.innerText = last.location;
+        if (srvEl) srvEl.innerText = `${last.service_name || 'Atendimento Geral'} (${last.service_type || 'Normal'})`;
+        if (patEl) patEl.innerText = last.patient_name ? `Paciente: ${last.patient_name}` : '';
+        if (badgeEl) {
+          badgeEl.innerText = last.service_type === 'Prioritário' ? '⭐ ATENDIMENTO PRIORITÁRIO' : 'SENHA CHAMADA';
+          badgeEl.style.backgroundColor = last.service_type === 'Prioritário' ? '#d97706' : '#ef4444';
+        }
+
+        const historyEl = document.getElementById('sidebarQueueHistory');
+        if (historyEl) {
+          const previousCalls = calls.slice(1, 4);
+          if (previousCalls.length === 0) {
+            historyEl.innerHTML = `<div style="font-size: 0.78rem; color: #64748b;">Sem chamadas anteriores</div>`;
+          } else {
+            historyEl.innerHTML = previousCalls.map((c) => `
+              <div class="queue-history-item">
+                <span class="qh-num">${c.ticket_number}</span>
+                <span class="qh-loc">${c.location}</span>
+              </div>
+            `).join('');
+          }
+        }
+      }
+
+      const waitCounter = document.getElementById('sidebarWaitingCounter');
+      if (waitCounter) {
+        waitCounter.innerText = `Aguardando: ${waiting.length}`;
+      }
+
+      // 2. Populate Quick Queue Launcher Drawer (if present)
+      const qGenService = document.getElementById('qGenService');
+      if (qGenService && qGenService.options.length !== services.length) {
+        qGenService.innerHTML = services.map((s) => `
+          <option value="${s.id}">${s.name} (Prefixo ${s.prefix})</option>
+        `).join('');
+      }
+
+      const qCallDesk = document.getElementById('qCallDesk');
+      if (qCallDesk && qCallDesk.options.length !== desks.length) {
+        const prevVal = qCallDesk.value;
+        qCallDesk.innerHTML = desks.map((d) => `
+          <option value="${d.name}">${d.name}</option>
+        `).join('');
+        if (prevVal) qCallDesk.value = prevVal;
+      }
+
+      const waitingBadge = document.getElementById('waitingCountBadge');
+      if (waitingBadge) waitingBadge.innerText = waiting.length;
+
+      const waitingListMini = document.getElementById('waitingListMini');
+      if (waitingListMini) {
+        if (waiting.length === 0) {
+          waitingListMini.innerHTML = `<div style="font-size: 0.8rem; color: #64748b; text-align: center;">Nenhuma senha aguardando na fila.</div>`;
+        } else {
+          waitingListMini.innerHTML = waiting.map((w) => `
+            <div class="waiting-mini-item">
+              <div>
+                <strong style="color: #fbbf24;">${w.ticket_number}</strong>
+                <span style="color: #94a3b8; margin-left: 6px;">${w.service_name || ''} ${w.patient_name ? '(' + w.patient_name + ')' : ''}</span>
+              </div>
+              <button class="drawer-btn btn-green" style="padding: 3px 8px; font-size: 0.75rem;" data-call-id="${w.id}">
+                Chamar
+              </button>
+            </div>
+          `).join('');
+
+          waitingListMini.querySelectorAll('[data-call-id]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              const ticketId = btn.getAttribute('data-call-id');
+              const location = document.getElementById('qCallDesk')?.value || 'Consultório 01';
+              await fetch('/api/queue/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticket_id: ticketId, location })
+              });
+            });
+          });
         }
       }
     } catch (e) {
       console.warn('Queue fetch error:', e);
+    }
+  }
+
+  // Bind Drawer Interactive Buttons
+  function setupDrawerActions() {
+    const btnGenTicket = document.getElementById('btnGenTicket');
+    if (btnGenTicket) {
+      btnGenTicket.addEventListener('click', async () => {
+        const service_id = document.getElementById('qGenService')?.value;
+        const patient_name = document.getElementById('qGenPatient')?.value || '';
+        const feedback = document.getElementById('genTicketFeedback');
+
+        const res = await fetch('/api/queue/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ service_id, patient_name })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('qGenPatient').value = '';
+          if (feedback) {
+            feedback.innerText = `✅ Ticket gerado: ${data.ticket.ticket_number} (${data.ticket.service_name})`;
+            setTimeout(() => { feedback.innerText = ''; }, 5000);
+          }
+          fetchRecentQueue();
+        }
+      });
+    }
+
+    const btnCallNext = document.getElementById('btnCallNextQueue');
+    if (btnCallNext) {
+      btnCallNext.addEventListener('click', async () => {
+        const location = document.getElementById('qCallDesk')?.value || 'Consultório 01';
+        const feedback = document.getElementById('genTicketFeedback');
+        const res = await fetch('/api/queue/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ call_next: true, location })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          if (feedback) {
+            feedback.innerText = `⚠️ ${err.error || 'Nenhuma senha na fila.'}`;
+            setTimeout(() => { feedback.innerText = ''; }, 4000);
+          }
+        }
+      });
+    }
+
+    const btnQuickAddDesk = document.getElementById('btnQuickAddDesk');
+    const quickAddDeskBox = document.getElementById('quickAddDeskBox');
+    const btnSaveInlineDesk = document.getElementById('btnSaveInlineDesk');
+    if (btnQuickAddDesk && quickAddDeskBox) {
+      btnQuickAddDesk.addEventListener('click', () => {
+        const isHidden = quickAddDeskBox.style.display === 'none';
+        quickAddDeskBox.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) {
+          document.getElementById('newDeskInlineInput')?.focus();
+        }
+      });
+    }
+    if (btnSaveInlineDesk) {
+      btnSaveInlineDesk.addEventListener('click', async () => {
+        const inp = document.getElementById('newDeskInlineInput');
+        const deskName = inp?.value.trim();
+        if (!deskName) return;
+        await fetch('/api/queue/desks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: deskName, category: 'Consultório' })
+        });
+        inp.value = '';
+        if (quickAddDeskBox) quickAddDeskBox.style.display = 'none';
+        fetchRecentQueue();
+      });
+    }
+
+    const btnCallManual = document.getElementById('btnCallManual');
+    if (btnCallManual) {
+      btnCallManual.addEventListener('click', async () => {
+        const ticket_number = document.getElementById('qManualNumber')?.value.trim();
+        const service_name = document.getElementById('qManualService')?.value.trim() || 'Atendimento Geral';
+        const patient_name = document.getElementById('qManualPatient')?.value.trim();
+        const location = document.getElementById('qCallDesk')?.value || 'Consultório 01';
+
+        if (!ticket_number) return;
+
+        await fetch('/api/queue/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticket_number,
+            location,
+            service_name,
+            service_type: ticket_number.toUpperCase().startsWith('P') ? 'Prioritário' : 'Normal',
+            patient_name
+          })
+        });
+        document.getElementById('qManualNumber').value = '';
+        document.getElementById('qManualPatient').value = '';
+      });
     }
   }
 
@@ -466,7 +1023,7 @@
       <div class="zone-ticker-wrapper">
         <div class="ticker-label">NOTÍCIAS</div>
         <div class="ticker-marquee">
-          <div class="ticker-content" id="tickerText">
+          <div class="ticker-content rss-ticker-target" id="tickerText">
             Carregando notícias em tempo real...
           </div>
         </div>
@@ -476,11 +1033,8 @@
 
   function renderAnnouncementsZone(container) {
     container.innerHTML = `
-      <div class="widget-card widget-announcements" style="height: 100%; border-radius: 0;">
-        <div class="widget-title">📢 INFORMATIVO GERAL</div>
-        <div class="announcement-body" style="font-size: 1.3rem;">
-          Mantenha a atenção aos anúncios da tela. Em caso de dúvidas, procure o balcão de atendimento.
-        </div>
+      <div class="widget-card widget-announcements" style="height: 100%; border-radius: 0; padding: 18px;">
+        ${buildAnnouncementsHtml(true)}
       </div>
     `;
   }
@@ -531,23 +1085,41 @@
     }
 
     updateWeather();
-    weatherInterval = setInterval(updateWeather, 20 * 60 * 1000); // 20 mins
+    weatherInterval = setInterval(updateWeather, 20 * 60 * 1000);
   }
 
-  // RSS Ticker Logic
+  // RSS Ticker Logic with Dynamic Comfortable Speed Calibration
   function startRssTicker() {
+    if (rssInterval) clearInterval(rssInterval);
+
     async function updateRss() {
       try {
         const res = await fetch('/api/widgets/rss');
         if (!res.ok) return;
         const data = await res.json();
 
-        const tickerEl = document.getElementById('tickerText');
-        if (tickerEl && data.items && data.items.length > 0) {
+        const tickerTargets = document.querySelectorAll('.rss-ticker-target');
+        if (tickerTargets.length > 0 && data.items && data.items.length > 0) {
           const itemsHtml = data.items
-            .map((item) => `<span class="ticker-item">${item.title}</span><span class="ticker-separator">●</span>`)
+            .map((item) => `<span class="ticker-item">${escapeHtml(item.title)}</span><span class="ticker-separator">●</span>`)
             .join(' ');
-          tickerEl.innerHTML = itemsHtml;
+
+          const speedPxPerSec = Math.max(15, Math.min(120, parseInt(settings.rss_scroll_speed, 10) || 40));
+          const rssFontFamily = settings.rss_font_family || "'Titillium Web', sans-serif";
+          const rssFontSize = Math.max(16, Math.min(34, parseInt(settings.rss_font_size, 10) || 22));
+
+          tickerTargets.forEach((el) => {
+            el.style.fontFamily = rssFontFamily;
+            el.style.fontSize = `${rssFontSize}px`;
+            el.innerHTML = itemsHtml;
+            // Measure total pixel width to calculate smooth duration (px / px_per_sec)
+            requestAnimationFrame(() => {
+              const totalWidth = el.scrollWidth + window.innerWidth;
+              const durationSeconds = Math.max(45, Math.round(totalWidth / speedPxPerSec));
+              el.style.setProperty('--ticker-duration', `${durationSeconds}s`);
+              el.style.animationDuration = `${durationSeconds}s`;
+            });
+          });
         }
       } catch (err) {
         console.warn('[RSS] Fetch error:', err);
@@ -555,11 +1127,11 @@
     }
 
     updateRss();
-    setInterval(updateRss, 5 * 60 * 1000); // 5 mins
+    rssInterval = setInterval(updateRss, 5 * 60 * 1000);
   }
 
   // Initialize
-  console.log(`[Player] Initializing TV Corporativa Player for screen: ${displayCode}`);
+  setupDrawerActions();
   fetchDisplayData();
   connectWebSocket();
 })();

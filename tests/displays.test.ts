@@ -53,6 +53,23 @@ describe('Displays API', () => {
 
     const displayId = createRes.body.display.id;
 
+    // Update / Edit Display
+    const editRes = await request(app)
+      .put(`/api/displays/${displayId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Tela Sala de Treinamento Editada',
+        code: 'TV-TEST-99',
+        orientation: 'portrait',
+        resolution: '1080x1920',
+        location: 'Prédio C - 3º Andar',
+        show_header: true
+      });
+
+    expect(editRes.status).toBe(200);
+    expect(editRes.body.display.name).toBe('Tela Sala de Treinamento Editada');
+    expect(editRes.body.display.orientation).toBe('portrait');
+
     // Delete
     const delRes = await request(app)
       .delete(`/api/displays/${displayId}`)

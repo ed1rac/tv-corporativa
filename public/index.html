@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TV Corporativa - Painel de Controle</title>
-  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css?v=1.3.0">
 </head>
 <body>
 
@@ -13,9 +16,10 @@
     <div class="login-card">
       <div style="font-size: 3rem; margin-bottom: 10px;">📺</div>
       <h1 class="login-title">TV Corporativa</h1>
-      <p class="login-sub">Sistema Profissional de Sinalização Digital</p>
+      <p class="login-sub" style="margin-bottom: 6px;">Sistema Profissional de Sinalização Digital</p>
+      <p style="font-size: 0.65rem; color: #64748b; margin-bottom: 20px;">feito por EDkallenn</p>
 
-      <div id="loginError" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem;"></div>
+      <div id="loginError" class="hidden" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem;"></div>
 
       <form id="loginForm">
         <div class="form-group" style="text-align: left;">
@@ -26,13 +30,13 @@
           <label class="form-label">Senha</label>
           <input type="password" id="loginPass" class="form-control" placeholder="tvcorporativa ou 123456" value="tvcorporativa" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 8px;">
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 8px; justify-content: center;">
           Entrar no Painel
         </button>
       </form>
 
       <div style="margin-top: 24px; font-size: 0.8rem; color: var(--text-muted); text-align: left; background: #0b1329; padding: 12px; border-radius: 8px;">
-        <strong>Usuários de Teste:</strong><br>
+        <strong>Usuários Padrão:</strong><br>
         • <code>admin</code> / senha: <code>tvcorporativa</code><br>
         • <code>edkallenn</code> / senha: <code>123456</code>
       </div>
@@ -41,9 +45,12 @@
 
   <!-- Sidebar Navigation -->
   <aside id="sidebar">
-    <div class="brand">
-      <span class="brand-icon">📺</span>
-      <span>TV Corporativa</span>
+    <div class="brand" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="brand-icon">📺</span>
+        <span>TV Corporativa</span>
+      </div>
+      <span style="font-size: 0.6rem; font-weight: 500; color: var(--text-muted); padding-left: 36px; opacity: 0.82;">feito por EDkallenn</span>
     </div>
 
     <ul class="nav-links">
@@ -77,10 +84,16 @@
           <span>Layouts Multi-Zonas</span>
         </a>
       </li>
+      <li class="nav-item" data-view="announcements">
+        <a href="#announcements">
+          <span>📢</span>
+          <span>Comunicados & Marca</span>
+        </a>
+      </li>
       <li class="nav-item" data-view="queue">
         <a href="#queue">
           <span>🔔</span>
-          <span>Chamada de Senhas</span>
+          <span>Senhas & Guichês</span>
         </a>
       </li>
       <li class="nav-item" data-view="settings">
@@ -104,9 +117,18 @@
   <main id="mainContent">
     <header class="topbar">
       <h2 class="page-title" id="pageTitle">Painel de Controle</h2>
-      <div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button id="reloadScreensBtn" class="btn btn-sm btn-outline" title="Forçar atualização imediata em todas as TVs conectadas">
+          🔄 Recarregar TVs
+        </button>
         <a href="/player?code=TV-01" target="_blank" class="btn btn-sm btn-success">
-          ▶️ Abrir Player da TV (TV-01)
+          ▶️ TV-01 (Corporativa)
+        </a>
+        <a href="/player?code=TV-02" target="_blank" class="btn btn-sm btn-primary">
+          ▶️ TV-02 (Consultório)
+        </a>
+        <a href="/player?code=TV-03" target="_blank" class="btn btn-sm btn-secondary">
+          ▶️ TV-03 (Totem 9:16)
         </a>
       </div>
     </header>
@@ -116,6 +138,21 @@
     </div>
   </main>
 
-  <script src="/js/admin.js"></script>
+  <!-- Modern Universal Modal Dialog -->
+  <div id="globalModal" class="modal-overlay hidden">
+    <div id="globalModalBox" class="modal-box">
+      <div class="modal-header">
+        <h3 id="globalModalTitle" class="card-title">Modal</h3>
+        <button id="globalModalClose" class="close-btn">&times;</button>
+      </div>
+      <div id="globalModalBody" class="modal-body-content"></div>
+      <div id="globalModalFooter" class="modal-footer-content"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/js/admin.js?v=1.3.0"></script>
 </body>
 </html>
