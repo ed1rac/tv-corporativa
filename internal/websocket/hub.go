@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,20 +25,27 @@ type Client struct {
 	DisplayCode string
 }
 
+type OutboundMessage struct {
+	Payload           []byte
+	TargetDisplayCode string
+}
+
 type Hub struct {
 	Clients    map[*Client]bool
-	Broadcast  chan []byte
+	Broadcast  chan OutboundMessage
 	Register   chan *Client
 	Unregister chan *Client
+	DB         *sql.DB
 	mu         sync.Mutex
 }
 
-func NewHub() *Hub {
+func NewHub(db *sql.DB) *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte),
+		Broadcast:  make(chan OutboundMessage, 128),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Clients:    make(map[*Client]bool),
+		DB:         db,
 	}
 }
 
@@ -50,15 +59,22 @@ func (h *Hub) Run() {
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			if _, ok := h.Clients[client]; ok {
+				code := client.DisplayCode
 				delete(h.Clients, client)
 				close(client.Send)
+				if code != "" && h.DB != nil {
+					_, _ = h.DB.Exec(`UPDATE displays SET status = 'offline' WHERE UPPER(code) = UPPER(?)`, code)
+				}
 			}
 			h.mu.Unlock()
-		case message := <-h.Broadcast:
+		case msg := <-h.Broadcast:
 			h.mu.Lock()
 			for client := range h.Clients {
+				if msg.TargetDisplayCode != "" && !strings.EqualFold(client.DisplayCode, msg.TargetDisplayCode) {
+					continue
+				}
 				select {
-				case client.Send <- message:
+				case client.Send <- msg.Payload:
 				default:
 					close(client.Send)
 					delete(h.Clients, client)
@@ -69,15 +85,34 @@ func (h *Hub) Run() {
 	}
 }
 
-func (h *Hub) BroadcastEvent(eventType string, data interface{}) {
+func (h *Hub) BroadcastEvent(eventType string, data interface{}, targetDisplayCode ...string) {
+	target := ""
+	if len(targetDisplayCode) > 0 {
+		target = targetDisplayCode[0]
+	}
 	payload, err := json.Marshal(map[string]interface{}{
 		"type":      eventType,
 		"data":      data,
-		"timestamp": time.Now().Format(time.RFC3339),
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 	if err == nil {
-		h.Broadcast <- payload
+		h.Broadcast <- OutboundMessage{
+			Payload:           payload,
+			TargetDisplayCode: target,
+		}
 	}
+}
+
+func (h *Hub) BroadcastScreenReload(displayCode ...string) {
+	code := ""
+	if len(displayCode) > 0 {
+		code = displayCode[0]
+	}
+	h.BroadcastEvent("screen:reload", map[string]string{"displayCode": code}, code)
+}
+
+func (h *Hub) BroadcastQueueCall(ticket interface{}) {
+	h.BroadcastEvent("queue:call", ticket)
 }
 
 func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
@@ -94,10 +129,9 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 	hub.Register <- client
 
-	// Welcome message
 	welcome, _ := json.Marshal(map[string]string{
 		"type":    "connected",
-		"message": "Conectado ao Hub de Sinalização Digital (Go Engine)",
+		"message": "Conectado ao Hub de Sinalização Digital (Go Engine v1.3.1)",
 	})
 	client.Send <- welcome
 
@@ -118,10 +152,18 @@ func (c *Client) readPump() {
 		}
 		var msg map[string]interface{}
 		if err := json.Unmarshal(message, &msg); err == nil {
-			if t, ok := msg["type"].(string); ok && t == "display:register" {
-				if code, ok := msg["displayCode"].(string); ok {
+			t, _ := msg["type"].(string)
+			if t == "display:register" {
+				if code, ok := msg["displayCode"].(string); ok && code != "" {
 					c.DisplayCode = code
+					if c.Hub.DB != nil {
+						_, _ = c.Hub.DB.Exec(`UPDATE displays SET status = 'online', last_ping = CURRENT_TIMESTAMP WHERE UPPER(code) = UPPER(?)`, code)
+					}
 					log.Printf("[WebSocket-Go] Display registered: %s\n", code)
+				}
+			} else if t == "display:ping" {
+				if c.DisplayCode != "" && c.Hub.DB != nil {
+					_, _ = c.Hub.DB.Exec(`UPDATE displays SET status = 'online', last_ping = CURRENT_TIMESTAMP WHERE UPPER(code) = UPPER(?)`, c.DisplayCode)
 				}
 			}
 		}
@@ -139,12 +181,14 @@ func (c *Client) writePump() {
 		select {
 		case message, ok := <-c.Send:
 			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			c.Conn.WriteMessage(websocket.TextMessage, message)
-		case <-ticker.Ping():
-			c.Conn.WriteMessage(websocket.PingMessage, nil)
+			_ = c.Conn.WriteMessage(websocket.TextMessage, message)
+		case <-ticker.C:
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
 }

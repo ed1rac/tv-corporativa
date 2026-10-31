@@ -1,20 +1,22 @@
 # ==========================================
-# Build Stage (Golang)
+# Build Stage (Golang 1.22 + SQLite CGO)
 # ==========================================
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-# SQLite requires gcc/g++
-RUN apk add --no-cache gcc g++ make
+# SQLite driver (mattn/go-sqlite3) requires gcc/musl-dev
+RUN apk add --no-cache gcc g++ musl-dev make
 
-COPY go.mod go.sum* ./
-RUN go mod download || true
+COPY go.mod ./
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
 
-COPY . .
+# Resolve dependencies and generate go.sum automatically
+RUN go mod tidy && go mod download
 
 # Compile static binary
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o tv-corporativa cmd/server/main.go
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o tv-corporativa ./cmd/server
 
 # ==========================================
 # Runner Stage (Ultra-minimal Alpine)

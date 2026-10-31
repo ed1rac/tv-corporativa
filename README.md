@@ -104,6 +104,39 @@ npm run build
 npm start
 ```
 
+### Opção 3: Execução em Go (`feature/go-alternative`)
+
+O projeto também conta com um motor backend completo em **Go (Golang 1.22+)** na branch `feature/go-alternative`, com 100% de paridade de funcionalidades (`v1.3.1`), compartilhando o mesmo banco SQLite (`data/tv_corporativa.db`) e a mesma pasta de mídias (`media/`), consumindo apenas **~15 MB de RAM**:
+
+```bash
+# 1. Alternar para a branch em Go
+git checkout feature/go-alternative
+```
+
+**Via Docker (Recomendado — não requer Go instalado na máquina):**
+```bash
+docker compose -f docker-compose.go.yml up -d --build
+```
+
+**Ou nativamente com Go instalado (Windows / Linux / macOS):**
+```powershell
+# No Windows (PowerShell com GCC do MSYS2/MinGW no PATH para o SQLite CGO):
+$env:Path += ";C:\msys64\ucrt64\bin"
+$env:CGO_ENABLED = "1"
+go mod tidy
+go run ./cmd/server/main.go
+
+# Ou gerar um executável nativo (.exe):
+go build -ldflags="-s -w" -o tv-corporativa.exe ./cmd/server
+.\tv-corporativa.exe
+```
+
+```bash
+# No Linux / macOS:
+CGO_ENABLED=1 go mod tidy
+CGO_ENABLED=1 go run ./cmd/server/main.go
+```
+
 ---
 
 ## 🧪 Testes Automatizados

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  tv-corporativa-go:
+    build:
+      context: .
+      dockerfile: Dockerfile.go
+    image: tv-corporativa-go:latest
+    container_name: tv_corporativa_go_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_PATH=/app/data/tv_corporativa.db
+      - MEDIA_PATH=/app/media
+      - JWT_SECRET=tvcorporativa_secret_jwt_key_2026_super_secure
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
