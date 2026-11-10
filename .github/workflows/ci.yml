@@ -1,0 +1,32 @@
+name: CI TV Corporativa
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test (Node.js 20 LTS)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Clonar Repositório
+      uses: actions/checkout@v4
+
+    - name: 🟢 Configurar Node.js 20 LTS
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: 📦 Instalar Dependências
+      run: npm ci
+
+    - name: 🔨 Compilar TypeScript
+      run: npm run build
+
+    - name: 🧪 Executar Suíte de Testes (Jest)
+      run: npm test
