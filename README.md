@@ -6,6 +6,30 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)
 ![Tests](https://img.shields.io/badge/Tests-16_Passing-success.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+---
+
+## 📸 Demonstração Visual do Sistema
+
+### 🖥️ Painel Administrativo CMS
+
+| Dashboard & Monitoramento em Tempo Real | Gestão de Telas & Displays |
+|:---:|:---:|
+| ![Dashboard & Monitoramento](./docs/screenshots/01-dashboard.png) | ![Gerenciar Telas & Displays](./docs/screenshots/02-displays.png) |
+| *Métricas operacionais, status de conexões e chamada de senhas* | *Configuração de layouts, resoluções (16:9 e 9:16) e playlists* |
+
+| Biblioteca Central de Mídias | Arquitetura de Layouts Multi-Zonas |
+|:---:|:---:|
+| ![Biblioteca de Mídias](./docs/screenshots/03-media-library.png) | ![Layouts Multi-Zonas](./docs/screenshots/04-multi-zone-layouts.png) |
+| *Upload por arrastar/colar (Ctrl+V), durações personalizadas e cards* | *Pré-configurações para Recepção, Totens Verticais e Chamada de Senhas* |
+
+### 📺 Player em Tempo Real nas TVs
+
+| Player ao Vivo — TV Recepção Principal (16:9) | Exibição de Slides com Feed de Notícias RSS |
+|:---:|:---:|
+| ![Player ao Vivo 1](./docs/screenshots/05-player-live-principal.png) | ![Player ao Vivo 2](./docs/screenshots/06-player-live-slide.png) |
+| *Layout Notícias & TV: Vídeo 70%, Sidebar com Relógio/Clima e Comunicados* | *Transição fluida com aceleração por hardware e ticker contínuo de notícias* |
 
 ---
 
