@@ -14,22 +14,63 @@
 
 ### 🖥️ Painel Administrativo CMS
 
-| Dashboard & Monitoramento em Tempo Real | Gestão de Telas & Displays |
-|:---:|:---:|
-| ![Dashboard & Monitoramento](./docs/screenshots/01-dashboard.png) | ![Gerenciar Telas & Displays](./docs/screenshots/02-displays.png) |
-| *Métricas operacionais, status de conexões e chamada de senhas* | *Configuração de layouts, resoluções (16:9 e 9:16) e playlists* |
+#### 📊 Dashboard & Monitoramento em Tempo Real
+*Métricas operacionais em tempo real, status de conexão das TVs cadastradas e chamada de senhas no consultório.*
 
-| Biblioteca Central de Mídias | Arquitetura de Layouts Multi-Zonas |
-|:---:|:---:|
-| ![Biblioteca de Mídias](./docs/screenshots/03-media-library.png) | ![Layouts Multi-Zonas](./docs/screenshots/04-multi-zone-layouts.png) |
-| *Upload por arrastar/colar (Ctrl+V), durações personalizadas e cards* | *Pré-configurações para Recepção, Totens Verticais e Chamada de Senhas* |
+<p align="center">
+  <a href="./docs/screenshots/01-dashboard.png">
+    <img src="./docs/screenshots/01-dashboard.png" alt="Dashboard & Monitoramento" width="100%" style="max-width: 850px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+</p>
+
+#### 🖥️ Gestão de Telas & Displays
+*Configuração de pontos de exibição (TV-01, TV-02 e Totens Verticais), resoluções (16:9 e 9:16) e vinculação de playlists.*
+
+<p align="center">
+  <a href="./docs/screenshots/02-displays.png">
+    <img src="./docs/screenshots/02-displays.png" alt="Gerenciar Telas & Displays" width="100%" style="max-width: 850px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+</p>
+
+#### 📁 Biblioteca Central de Mídias
+*Upload instantâneo por arrastar-e-soltar ou colar (Ctrl+V), definição de tempos de exibição e galeria organizada.*
+
+<p align="center">
+  <a href="./docs/screenshots/03-media-library.png">
+    <img src="./docs/screenshots/03-media-library.png" alt="Biblioteca de Mídias" width="100%" style="max-width: 850px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+</p>
+
+#### 📐 Arquitetura de Layouts Multi-Zonas
+*Pré-configurações para Recepção, Totens Verticais de elevador, Grid 2x2 e Chamada de Senhas com áudio nativo.*
+
+<p align="center">
+  <a href="./docs/screenshots/04-multi-zone-layouts.png">
+    <img src="./docs/screenshots/04-multi-zone-layouts.png" alt="Layouts Multi-Zonas" width="100%" style="max-width: 850px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+</p>
+
+---
 
 ### 📺 Player em Tempo Real nas TVs
 
-| Player ao Vivo — TV Recepção Principal (16:9) | Exibição de Slides com Feed de Notícias RSS |
-|:---:|:---:|
-| ![Player ao Vivo 1](./docs/screenshots/05-player-live-principal.png) | ![Player ao Vivo 2](./docs/screenshots/06-player-live-slide.png) |
-| *Layout Notícias & TV: Vídeo 70%, Sidebar com Relógio/Clima e Comunicados* | *Transição fluida com aceleração por hardware e ticker contínuo de notícias* |
+#### 🎬 Player ao Vivo — TV Recepção Principal (16:9)
+*Layout Notícias & TV: Vídeo 70%, Sidebar lateral direita com relógio digital, previsão do tempo ao vivo e comunicado oficial da Polícia Federal.*
+
+<p align="center">
+  <a href="./docs/screenshots/05-player-live-principal.png">
+    <img src="./docs/screenshots/05-player-live-principal.png" alt="Player ao Vivo Recepção" width="100%" style="max-width: 850px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+</p>
+
+#### 📰 Exibição de Slides com Ticker Contínuo de Notícias RSS
+*Transição suave em aceleração de hardware via GPU e rodapé dinâmico com manchetes de notícias RSS em tempo real.*
+
+<p align="center">
+  <a href="./docs/screenshots/06-player-live-slide.png">
+    <img src="./docs/screenshots/06-player-live-slide.png" alt="Exibição de Slides com Feed de Notícias RSS" width="100%" style="max-width: 850px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+</p>
 
 ---
 
