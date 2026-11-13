@@ -1,0 +1,5 @@
+theme: jekyll-theme-slate
+title: "📺 TV Corporativa & Sinalização Digital"
+description: "Sistema moderno para gestão de TVs corporativas, painéis informativos, totens verticais e chamada de senhas."
+kramdown:
+  parse_block_html: true
